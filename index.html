@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261021.1 -->
+<!-- RSO_VERSION ver.20261025.1 -->
 <title>所属機関営業ボード</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -180,6 +180,16 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
 .hcols ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:13px}
 .hcols .why{font-size:12px;color:var(--muted)}
 .opt{font-size:11px;color:#a0aec0}
+/* AI一括登録 */
+.ai-text{width:100%;min-height:180px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical}
+.ai-sum{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 8px;font-size:13px}
+.ai-tbl{font-size:12px}
+.ai-tbl td{padding:5px 6px;vertical-align:middle}
+.ai-tbl input[type=text],.ai-tbl input[type=number],.ai-tbl select{width:100%;min-width:90px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:#fff}
+.ai-tbl tr.dup td{background:#fffaf0}
+.ai-busy{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;padding:14px 0}
+.ai-busy i{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;display:inline-block}
+@media (prefers-reduced-motion:no-preference){.ai-busy i{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}}
 @media (prefers-reduced-motion:no-preference){.drawer{animation:slide .2s ease-out}@keyframes slide{from{transform:translateX(30px)}}}
 .login{max-width:360px;margin:80px auto;background:#fff;border-radius:12px;padding:28px;box-shadow:0 4px 16px rgba(0,0,0,.06)}
 .login h2{margin:0 0 4px;font-size:18px;color:var(--accent)}
@@ -211,6 +221,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
   <button class="nav-item" id="nav-hearing" data-v="hearing">ヒアリング項目</button>
   <div class="sb-group">操作</div>
   <button class="nav-item" id="navNew">＋ 新規登録</button>
+  <button class="nav-item" id="navAi">AIで一括登録</button>
   <div class="sb-group">リマインド</div>
   <button class="nav-item" id="navDue">期日切れ・今日 <span class="badge" id="navDueN">0</span></button>
   <div class="sb-group">アカウント</div>
@@ -223,7 +234,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261021.1</div>
+      <div class="ver">ver.20261025.1</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -407,12 +418,14 @@ function setView(v){
   view=v;
   ['kpi','leads','hearing'].forEach(function(x){$('v-'+x).hidden=(x!==v);$('nav-'+x).classList.toggle('on',x===v);});
   $('pTitle').textContent=TITLES[v][0]; $('pSub').textContent=TITLES[v][1];
-  $('pTools').innerHTML=v==='leads'?'<button class="btn btn-primary" id="tNew">＋ 新規登録</button>':'';
+  $('pTools').innerHTML=v==='leads'?'<button class="btn" id="tAi">AIで一括登録</button><button class="btn btn-primary" id="tNew">＋ 新規登録</button>':'';
   if($('tNew'))$('tNew').onclick=function(){openLead(null);};
+  if($('tAi'))$('tAi').onclick=function(){openAiImport();};
   render(); try{localStorage.setItem('eb_view',v);}catch(e){}
 }
 ['kpi','leads','hearing'].forEach(function(x){$('nav-'+x).addEventListener('click',function(){setView(x);});});
 $('navNew').addEventListener('click',function(){openLead(null);});
+$('navAi').addEventListener('click',function(){openAiImport();});
 $('navDue').addEventListener('click',function(){lDueOnly=true;lStage='open';setView('leads');});
 
 /* ---------- KPI ---------- */
@@ -543,7 +556,7 @@ function openLead(id){
   renderDrawer(); $('drawer').hidden=false; $('overlay').hidden=false;
   if(!id)setTimeout(function(){var f=$('d_name');if(f)f.focus();},30);
 }
-function closeDrawer(){$('drawer').hidden=true;$('overlay').hidden=true;openId=null;draft=null;}
+function closeDrawer(){$('drawer').hidden=true;$('overlay').hidden=true;openId=null;draft=null;aiOpen=false;}
 $('overlay').addEventListener('click',closeDrawer);
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('drawer').hidden)closeDrawer();});
 function inp(id,v,type,ph){return '<input type="'+(type||'text')+'" id="'+id+'" value="'+esc(v)+'"'+(ph?' placeholder="'+esc(ph)+'"':'')+(type==='number'?' min="0"':'')+'>';}
@@ -651,6 +664,101 @@ async function addAct(){
     toast('記録しました'); await loadAll();
   }catch(e){toast('記録できませんでした：'+(e&&e.message||''));}
   b.disabled=false;
+}
+
+/* ---------- AIで一括登録 ----------
+   テキストを Edge Function「ai-import」に送り、AIが読み取った会社を確認画面に並べる。
+   登録はこの画面で選んだ行だけ（AIは読み取るだけで、DBには書かない） */
+var aiOpen=false, aiText='', aiRows=[], aiBusy=false, aiNote='', aiErr='';
+var aiCommon={staff:'',source:'テレアポ',rank:'C',stage:'未接触',nextDate:'',nextKind:'電話'};
+function normName(s){return String(s||'').normalize('NFKC').replace(/株式会社|有限会社|合同会社|一般社団法人|社会福祉法人|医療法人|協同組合|\(株\)|\(有\)|（株）|（有）|\s/g,'').toLowerCase();}
+function telDigits(s){var d=String(s||'').replace(/[^0-9]/g,'');return d.length>=10?d.slice(0,11):'';}
+function markDups(){
+  var names={}, tels={};
+  leads.forEach(function(l){var n=normName(l.name);if(n)names[n]=l.name;var t=telDigits(l.tel);if(t)tels[t]=l.name;});
+  var seen={};
+  aiRows.forEach(function(r){
+    var n=normName(r.name), t=telDigits(r.tel); r.dup='';
+    if(n&&names[n])r.dup='登録済み：'+names[n]; else if(t&&tels[t])r.dup='電話が同じ：'+tels[t]; else if(n&&seen[n])r.dup='この中で重複';
+    if(n)seen[n]=1;
+  });
+}
+function openAiImport(){
+  aiOpen=true; openId=null; draft=null; aiErr='';
+  renderAi(); $('drawer').hidden=false; $('overlay').hidden=false;
+  setTimeout(function(){var t=$('ai_text');if(t&&!aiRows.length)t.focus();},30);
+}
+function renderAi(){
+  var sel=aiRows.filter(function(r){return r.sel;}).length, dups=aiRows.filter(function(r){return r.dup;}).length;
+  var html='<div class="dhead"><div><div class="dtitle" id="dTitle">AIで一括登録</div><div class="sub">リストや名刺・メールの文章を貼り付けると、AIが会社ごとに読み取ります。登録は確認してから行います。</div></div><button class="btn btn-sm" id="aiClose">閉じる</button></div><div class="dbody">'+
+  '<div class="sec-title">1. テキストを貼り付け</div>'+
+  '<textarea class="ai-text" id="ai_text" placeholder="例：Excelの表をそのままコピー、テレアポのリスト、名刺の文字、問い合わせメールの本文など">'+esc(aiText)+'</textarea>'+
+  '<div class="hint">一度に40,000文字まで。会社名・住所・電話・業種などが書いてあれば、列の並びや書き方はそろっていなくてかまいません。</div>'+
+  '<div class="sec-title">2. まとめて入れる値</div><div class="form">'+
+    '<label for="ai_staff">担当</label><input type="text" id="ai_staff" list="aiStaffDl" value="'+esc(aiCommon.staff)+'"><datalist id="aiStaffDl">'+staffList().map(function(s){return '<option value="'+esc(s)+'">';}).join('')+'</datalist>'+
+    '<label for="ai_source">獲得経路</label><select id="ai_source">'+opts(SOURCES,aiCommon.source)+'</select>'+
+    '<label for="ai_rank">ランク</label><select id="ai_rank">'+opts(['A','B','C'],aiCommon.rank)+'</select>'+
+    '<label for="ai_stage">ステータス</label><select id="ai_stage">'+opts(STAGES,aiCommon.stage)+'</select>'+
+    '<label for="ai_nextDate">次の一手の期日</label><input type="date" id="ai_nextDate" value="'+esc(aiCommon.nextDate)+'">'+
+    '<label for="ai_nextKind">方法</label><select id="ai_nextKind">'+opts(NEXT_KINDS,aiCommon.nextKind)+'</select>'+
+  '</div>'+
+  '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn btn-primary" id="aiRun"'+(aiBusy?' disabled':'')+'>'+(aiRows.length?'もう一度読み取る':'AIで読み取る')+'</button></div>'+
+  (aiBusy?'<div class="ai-busy"><i></i>AIが読み取っています。量が多いと1分ほどかかります。</div>':'')+
+  (aiErr?'<div class="msg" style="margin-top:10px">'+esc(aiErr)+'</div>':'')+
+  (aiRows.length?
+   '<div class="sec-title">3. 確認して登録<span class="sub num">'+aiRows.length+'社'+(dups?'（重複の疑い '+dups+'社）':'')+'</span></div>'+
+   (aiNote?'<div class="hint" style="margin:0 0 6px">AIからのメモ：'+esc(aiNote)+'</div>':'')+
+   '<div class="ai-sum"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ai_all"'+(sel===aiRows.length?' checked':'')+'> すべて選ぶ</label><span class="sub">重複の疑いがある行は最初から外してあります。内容は直接直せます。</span></div>'+
+   '<div class="tablewrap"><table class="ai-tbl"><thead><tr><th></th><th>会社名</th><th>所在地</th><th>分野</th><th>電話・メール</th><th>先方担当者</th><th>想定人数</th><th>メモ</th></tr></thead><tbody>'+
+   aiRows.map(function(r,i){return '<tr class="'+(r.dup?'dup':'')+'"><td><input type="checkbox" data-sel="'+i+'"'+(r.sel?' checked':'')+' aria-label="登録する"></td>'+
+     '<td><input type="text" data-i="'+i+'" data-k="name" value="'+esc(r.name)+'">'+(r.dup?'<div class="sub" style="color:#c05621">'+esc(r.dup)+'</div>':'')+'</td>'+
+     '<td><input type="text" data-i="'+i+'" data-k="pref" value="'+esc(r.pref)+'"></td>'+
+     '<td><select data-i="'+i+'" data-k="field">'+opts(FIELDS,r.field,'選択')+'</select></td>'+
+     '<td><input type="text" data-i="'+i+'" data-k="tel" value="'+esc(r.tel)+'"></td>'+
+     '<td><input type="text" data-i="'+i+'" data-k="contact" value="'+esc(r.contact)+'"></td>'+
+     '<td><input type="number" min="0" data-i="'+i+'" data-k="people" value="'+esc(r.people)+'" style="min-width:60px"></td>'+
+     '<td><input type="text" data-i="'+i+'" data-k="memo" value="'+esc(r.memo)+'" style="min-width:160px"></td></tr>';}).join('')+
+   '</tbody></table></div>':'')+
+  '</div><div class="dfoot"><span class="sub" id="aiSelN">'+(aiRows.length?'選択中 '+sel+'社':'')+'</span><div style="display:flex;gap:8px"><button class="btn" id="aiCancel">閉じる</button>'+(aiRows.length?'<button class="btn btn-primary" id="aiSave"'+(sel&&!aiBusy?'':' disabled')+'>選んだ'+sel+'社を登録する</button>':'')+'</div></div>';
+  var dr=$('drawer'), top=dr.scrollTop; dr.innerHTML=html; dr.scrollTop=top;
+  $('aiClose').onclick=closeDrawer; $('aiCancel').onclick=closeDrawer; $('aiRun').onclick=runAi;
+  $('ai_text').addEventListener('input',function(e){aiText=e.target.value;});
+  ['staff','source','rank','stage','nextDate','nextKind'].forEach(function(k){var el=$('ai_'+k);el.addEventListener('change',function(){aiCommon[k]=el.value.trim();});el.addEventListener('input',function(){aiCommon[k]=el.value.trim();});});
+  dr.querySelectorAll('[data-i]').forEach(function(el){el.addEventListener('input',function(){aiRows[+el.dataset.i][el.dataset.k]=el.value;});el.addEventListener('change',function(){aiRows[+el.dataset.i][el.dataset.k]=el.value;});});
+  dr.querySelectorAll('[data-sel]').forEach(function(el){el.addEventListener('change',function(){aiRows[+el.dataset.sel].sel=el.checked;aiSelUpdate();});});
+  if($('ai_all'))$('ai_all').addEventListener('change',function(e){aiRows.forEach(function(r){r.sel=e.target.checked;});dr.querySelectorAll('[data-sel]').forEach(function(c){c.checked=e.target.checked;});aiSelUpdate();});
+  if($('aiSave'))$('aiSave').onclick=saveAi;
+}
+function aiSelUpdate(){var n=aiRows.filter(function(r){return r.sel;}).length;$('aiSelN').textContent='選択中 '+n+'社';var b=$('aiSave');if(b){b.textContent='選んだ'+n+'社を登録する';b.disabled=!n;}}
+async function aiErrorText(err){
+  try{var c=err&&err.context;if(c&&typeof c.json==='function'){var j=await c.json();if(j&&j.message)return j.message;}}catch(e){}
+  return 'AIの読み取りに失敗しました：'+(err&&err.message||'不明なエラー');
+}
+async function runAi(){
+  aiText=$('ai_text').value; if(!aiText.trim()){toast('テキストを貼り付けてください');return;}
+  aiBusy=true; aiErr=''; renderAi();
+  try{
+    var r=await db.functions.invoke('ai-import',{body:{text:aiText}});
+    if(r.error)throw r.error;
+    var d=r.data||{}; if(!d.ok)throw new Error(d.message||'読み取りに失敗しました');
+    aiNote=(d.note||'')+(d.truncated?'（量が多く、途中までしか読み取れていない可能性があります。分けて貼り付けてください）':'');
+    aiRows=(d.leads||[]).filter(function(x){return x&&x.name;}).map(function(x){return {name:x.name||'',pref:x.pref||'',field:FIELDS.indexOf(x.field)>=0?x.field:'その他・未定',contact:x.contact||'',tel:x.tel||'',people:x.people==null?'':x.people,memo:x.memo||'',sel:true,dup:''};});
+    markDups(); aiRows.forEach(function(r){if(r.dup)r.sel=false;});
+    if(!aiRows.length)aiErr='会社を読み取れませんでした。会社名が含まれているか確認してください。';
+  }catch(e){aiErr=await aiErrorText(e);}
+  aiBusy=false; if(aiOpen)renderAi();
+}
+async function saveAi(){
+  var rows=aiRows.filter(function(r){return r.sel&&String(r.name).trim();});
+  if(!rows.length)return;
+  var c=aiCommon, now=new Date().toISOString();
+  var body=rows.map(function(r){var h={};if(r.field&&r.field!=='その他・未定')h.h_field=r.field;return {name:String(r.name).trim(),pref:r.pref,field:r.field,source:c.source,contact:r.contact,tel:r.tel,stage:c.stage||'未接触',rank:c.rank,staff:c.staff,people:n2(r.people),fee:null,next_date:c.nextDate||null,next_kind:c.nextKind,next_note:'',plan:'',memo:r.memo,hearing:h,updated_at:now};});
+  var b=$('aiSave'); b.disabled=true; b.textContent='登録しています…';
+  try{
+    for(var i=0;i<body.length;i+=200)must(await db.from('leads').insert(body.slice(i,i+200)));
+    toast(body.length+'社を登録しました');
+    aiRows=[]; aiText=''; aiNote=''; closeDrawer(); lStage='all'; lDueOnly=false; lSort='new'; if($('lSort'))$('lSort').value='new'; setView('leads'); await loadAll();
+  }catch(e){toast('登録できませんでした：'+(e&&e.message||''));b.disabled=false;aiSelUpdate();}
 }
 
 /* ---------- ヒアリング項目 ---------- */

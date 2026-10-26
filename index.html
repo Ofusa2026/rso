@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261026.1 -->
+<!-- RSO_VERSION ver.20261026.2 -->
 <title>所属機関営業ボード</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -234,7 +234,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261026.1</div>
+      <div class="ver">ver.20261026.2</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -343,6 +343,22 @@ var HEARING = [
     {id:'h_ihan',l:'過去1年の非自発的離職・行方不明者・労働法令違反',t:'sel',o:['なし','あり','不明'],why:'あると受入れ機関の基準を満たさないおそれがある'},
     {id:'h_pay',l:'日本人と同等以上の報酬を出せるか',t:'sel',o:['出せる','検討中','難しい'],why:'報酬が日本人と同等以上であることが要件'},
     {id:'h_house',l:'住居の用意',t:'sel',o:['社宅・寮あり','借上げ予定','本人が手配','未定'],why:'住居確保は支援計画の義務的支援に入る'}]},
+  {g:'雇用条件', items:[
+    {id:'h_emp',l:'雇用形態',t:'sel',o:['直接雇用','派遣'],why:'特定技能は直接雇用が原則。派遣は農業・漁業だけ'},
+    {id:'h_hours',l:'所定労働時間',t:'text',why:'フルタイムかどうかを確認する（例：8:00〜17:00 実働8時間）'},
+    {id:'h_shift',l:'シフト',t:'sel',o:['固定','シフト制'],why:'人材の希望や通勤手段との相性を見る'},
+    {id:'h_night',l:'夜勤の有無',t:'sel',o:['なし','あり'],why:'人材の希望と、深夜の割増賃金の確認'},
+    {id:'h_paytype',l:'基本給の形',t:'sel',o:['月給制','時給制','日給月給制'],why:'時給制は月によって収入が変わるので、説明が必要'},
+    {id:'h_hourly',l:'時給',t:'text',why:'最低賃金を下回っていないかを見る'},
+    {id:'h_monthly',l:'月給',t:'text',why:'日本人と同等以上かを見る'},
+    {id:'h_ot',l:'残業の目安',t:'text',why:'手取りの見込みと、36協定の確認'},
+    {id:'h_holiday',l:'休日・年間休日数',t:'text',why:'日本人と同じ扱いかを確認する'},
+    {id:'h_dorm',l:'寮費',t:'text',why:'実費を超える控除は問題になる。手取りの説明に必要'},
+    {id:'h_meal',l:'食費',t:'text',why:'控除する場合は金額と内容を確認する'},
+    {id:'h_ins',l:'社会保険',t:'sel',o:['社保','国保'],why:'法人は社会保険（健康保険・厚生年金）への加入が必要'},
+    {id:'h_bonus',l:'賞与',t:'sel',o:['あり','なし'],why:'日本人社員と同じ扱いかを確認する'},
+    {id:'h_raise',l:'昇給',t:'sel',o:['あり','なし'],why:'日本人社員と同じ扱いかを確認する'},
+    {id:'h_retire',l:'退職金',t:'sel',o:['あり','なし'],why:'日本人社員と同じ扱いかを確認する'}]},
   {g:'今の支援体制', items:[
     {id:'h_sup',l:'支援の体制',t:'sel',o:['自社支援','他社に委託','まだ受け入れていない'],why:'委託先がいれば乗り換え、自社支援なら負担軽減の提案になる'},
     {id:'h_vendor',l:'委託先と1人あたりの月額委託費',t:'text',why:'価格の比較材料になる'},
@@ -542,6 +558,8 @@ function suggestions(L){
   if(h.h_sha==='一部未加入'||h.h_ihan==='あり')out.push(['bad','受入れの要件に不安がある：受入れ可能か行政書士に事前に確認する']);
   if(h.h_pay==='難しい')out.push(['bad','報酬は日本人と同等以上が要件：給与水準を一緒に確認する']);
   if(h.h_house==='未定')out.push(['ok','住居が未定：住居探しの支援メニューを示す']);
+  if(h.h_emp==='派遣'&&h.h_field!=='農業'&&h.h_field!=='漁業'&&L.field!=='農業'&&L.field!=='漁業')out.push(['bad','派遣で受け入れられるのは農業・漁業だけ：直接雇用にできるか確認する']);
+  if(h.h_ins==='国保')out.push(['warn','国保の場合：法人なら社会保険の加入が必要。個人事業所かどうかを確認する']);
   if(h.h_move)out.push(['ok','技能実習からの移行予定あり：対象者の在留期限の一覧をもらう']);
   if(h.h_cmp)out.push(['ok','比較先（'+h.h_cmp+'）との違いを1枚にまとめて持っていく']);
   if(filled>0&&!h.h_dec)out.push(['warn','決裁者がまだ分からない：次回は決裁者の同席をお願いする']);

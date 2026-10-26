@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261026.2 -->
+<!-- RSO_VERSION ver.20261026.3 -->
 <title>所属機関営業ボード</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -180,6 +180,21 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
 .hcols ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:13px}
 .hcols .why{font-size:12px;color:var(--muted)}
 .opt{font-size:11px;color:#a0aec0}
+/* マイページ */
+.mp-alert{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.mp-alert div{border-radius:10px;padding:10px 14px;font-size:13px}
+.mp-alert .warn{background:#fffaf0;color:#c05621;border:1px solid #fbd38d}
+.mp-alert .bad{background:#fff5f5;color:#c53030;border:1px solid #feb2b2}
+.mp-alert .info{background:#ebf8ff;color:#2b6cb0;border:1px solid #bee3f8}
+.mp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:1100px){.mp-grid{grid-template-columns:1fr}}
+.mp-grid .kcard{margin-bottom:0}
+.mp-grid .wide{grid-column:1/-1}
+.rows table{font-size:12.5px}
+.rows td{padding:5px 6px;vertical-align:middle}
+.rows input,.rows select{width:100%;min-width:90px;padding:5px 7px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;background:#fff}
+.law{font-size:11px;color:var(--muted);font-weight:400}
+.ro input,.ro select,.ro textarea{background:#f7fafc;color:var(--muted)}
 /* AI一括登録 */
 .ai-text{width:100%;min-height:180px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical}
 .ai-sum{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 8px;font-size:13px}
@@ -224,6 +239,9 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
   <button class="nav-item" id="navAi">AIで一括登録</button>
   <div class="sb-group">リマインド</div>
   <button class="nav-item" id="navDue">期日切れ・今日 <span class="badge" id="navDueN">0</span></button>
+  <div class="sb-group">登録支援機関</div>
+  <button class="nav-item" id="nav-mypage" data-v="mypage">マイページ</button>
+  <button class="nav-item" id="nav-orgs" data-v="orgs" hidden>登録支援機関の管理</button>
   <div class="sb-group">アカウント</div>
   <button class="nav-item" id="navOut">ログアウト</button>
   <div class="sb-user" id="sbUser"></div>
@@ -234,7 +252,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261026.2</div>
+      <div class="ver">ver.20261026.3</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -295,6 +313,12 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
   <section id="v-hearing" hidden>
     <div class="hcols" id="hList"></div>
   </section>
+
+  <!-- マイページ（登録支援機関の基本情報） -->
+  <section id="v-mypage" hidden><div id="mpBody"></div></section>
+
+  <!-- 運営：登録支援機関の管理 -->
+  <section id="v-orgs" hidden><div id="orgsBody"></div></section>
 </div>
 
 <div id="overlay" class="overlay" hidden></div>
@@ -381,7 +405,7 @@ var HCOUNT = HEARING.reduce(function(a,g){return a+g.items.length;},0);
 /* Supabase の接続先（新しいプロジェクトを作ったら、この2つを書き換える） */
 var SUPABASE_URL = 'https://xolkqaosdtzhdrofgmtm.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_GaRnBvMgE19n1P1ou7EO_A_ykL-GgZi';
-var db=null, leads=[], acts=[], targets={}, view='kpi';
+var db=null, leads=[], acts=[], targets={}, view='kpi', me=null, myOrg=null;
 function n2(v){return v===''||v==null?null:Number(v);}
 function fromLead(r){return {id:r.id,name:r.name||'',pref:r.pref||'',field:r.field||'',source:r.source||'',contact:r.contact||'',tel:r.tel||'',stage:r.stage||'未接触',rank:r.rank||'',staff:r.staff||'',people:r.people==null?'':r.people,fee:r.fee==null?'':r.fee,nextDate:r.next_date||'',nextKind:r.next_kind||'',nextNote:r.next_note||'',plan:r.plan||'',memo:r.memo||'',hearing:r.hearing||{},createdAt:r.created_at||'',updatedAt:r.updated_at||''};}
 function toLead(L){return {name:L.name,pref:L.pref,field:L.field,source:L.source,contact:L.contact,tel:L.tel,stage:L.stage,rank:L.rank,staff:L.staff,people:n2(L.people),fee:n2(L.fee),next_date:L.nextDate||null,next_kind:L.nextKind,next_note:L.nextNote,plan:L.plan,memo:L.memo,hearing:L.hearing||{},updated_at:new Date().toISOString()};}
@@ -429,17 +453,18 @@ function nextCell(l){
 }
 
 /* ---------- 画面切替 ---------- */
-var TITLES={kpi:['KPI','所属機関への営業の行動量と成果を、月の目標と比べて見ます'],leads:['見込み客','求人・支援委託をもらう前の企業と、次の一手を管理します'],hearing:['ヒアリング項目','所属機関との初回商談で聞く項目と、その理由']};
+var TITLES={kpi:['KPI','所属機関への営業の行動量と成果を、月の目標と比べて見ます'],leads:['見込み客','求人・支援委託をもらう前の企業と、次の一手を管理します'],mypage:['マイページ','登録支援機関の基本情報。法定の帳簿（支援実施体制）と登録支援機関概要書の項目をまとめて管理します'],orgs:['登録支援機関の管理','運営用：配布する登録支援機関と、その最初の管理者を作ります'],hearing:['ヒアリング項目','所属機関との初回商談で聞く項目と、その理由']};
 function setView(v){
   view=v;
-  ['kpi','leads','hearing'].forEach(function(x){$('v-'+x).hidden=(x!==v);$('nav-'+x).classList.toggle('on',x===v);});
+  if(v==='orgs'&&!(me&&me.role==='operator'))v='kpi'; view=v;
+  ['kpi','leads','hearing','mypage','orgs'].forEach(function(x){$('v-'+x).hidden=(x!==v);$('nav-'+x).classList.toggle('on',x===v);});
   $('pTitle').textContent=TITLES[v][0]; $('pSub').textContent=TITLES[v][1];
   $('pTools').innerHTML=v==='leads'?'<button class="btn" id="tAi">AIで一括登録</button><button class="btn btn-primary" id="tNew">＋ 新規登録</button>':'';
   if($('tNew'))$('tNew').onclick=function(){openLead(null);};
   if($('tAi'))$('tAi').onclick=function(){openAiImport();};
-  render(); try{localStorage.setItem('eb_view',v);}catch(e){}
+  render(true); try{localStorage.setItem('eb_view',v);}catch(e){}
 }
-['kpi','leads','hearing'].forEach(function(x){$('nav-'+x).addEventListener('click',function(){setView(x);});});
+['kpi','leads','hearing','mypage','orgs'].forEach(function(x){$('nav-'+x).addEventListener('click',function(){setView(x);});});
 $('navNew').addEventListener('click',function(){openLead(null);});
 $('navAi').addEventListener('click',function(){openAiImport();});
 $('navDue').addEventListener('click',function(){lDueOnly=true;lStage='open';setView('leads');});
@@ -498,7 +523,7 @@ $('kCancel').addEventListener('click',function(){kEditing=false;renderKpi();});
 $('kSave').addEventListener('click',async function(){
   var t={};KPIS.forEach(function(K){var v=Number(($('kt_'+K.k)||{}).value);t[K.k]=isFinite(v)&&v>=0?v:K.def;});
   var b=$('kSave');b.disabled=true;
-  try{var now=new Date().toISOString();must(await db.from('kpi_targets').upsert([{key:kMonth,data:t,updated_at:now},{key:'default',data:t,updated_at:now}]));kEditing=false;toast('目標を保存しました');await loadAll();}
+  try{var now=new Date().toISOString();must(await db.from('kpi_targets').upsert([{org_id:me.org_id,key:kMonth,data:t,updated_at:now},{org_id:me.org_id,key:'default',data:t,updated_at:now}],{onConflict:'org_id,key'}));kEditing=false;toast('目標を保存しました');await loadAll();}
   catch(e){toast('保存できませんでした：'+(e&&e.message||''));}
   b.disabled=false;renderKpi();
 });
@@ -779,15 +804,163 @@ async function saveAi(){
   }catch(e){toast('登録できませんでした：'+(e&&e.message||''));b.disabled=false;aiSelUpdate();}
 }
 
+/* ---------- マイページ（登録支援機関の基本情報） ----------
+   項目は 参考様式第2-2号「登録支援機関概要書」と 運用要領 第9章（変更の届出・帳簿）にそろえてある。
+   中身は orgs.profile（jsonb）に1つで持つ。書けるのは管理者と運営だけ（RLS） */
+var ROLE_NAME={member:'一般',admin:'管理者',operator:'運営'};
+var PROFILE_SECS=[
+  {t:'法人の基本情報',law:'概要書 1欄', f:[
+    {k:'corp_name',l:'名称',todoke:true},{k:'corp_name_en',l:'名称（英語表記）'},
+    {k:'corp_type',l:'法人・個人の別',sel:['法人','個人事業主']},{k:'corp_no',l:'法人番号（13桁）'},
+    {k:'rep_title',l:'代表者の役職'},{k:'rep_name',l:'代表者の氏名',todoke:true},
+    {k:'corp_addr',l:'住所（本店所在地）',todoke:true,wide:true},
+    {k:'tel',l:'代表電話'},{k:'email',l:'代表メール'},{k:'url',l:'ホームページ',wide:true}]},
+  {t:'登録',law:'登録の有効期間は5年', f:[
+    {k:'reg_no',l:'登録番号'},{k:'reg_office',l:'登録した地方出入国在留管理局'},
+    {k:'reg_date',l:'登録年月日',type:'date'},{k:'reg_expiry',l:'有効期限',type:'date',hint:'空欄なら登録年月日から5年で計算'},
+    {k:'shokai_no',l:'有料職業紹介 許可番号（ある場合）'},{k:'shokai_expiry',l:'職業紹介 許可の有効期限',type:'date'}]},
+  {t:'職員数',law:'概要書', f:[
+    {k:'staff_full',l:'常勤職員数（人）',type:'number'},{k:'staff_part',l:'非常勤職員数（人）',type:'number'},{k:'staff_asof',l:'いつ時点か',type:'date'}]},
+  {t:'支援の実施体制',law:'概要書', f:[
+    {k:'support_hours',l:'相談に応じる曜日・時間帯',wide:true,todoke:true},
+    {k:'support_methods',l:'相談の方法（面談・電話・メール・SNSなど）',wide:true,todoke:true},
+    {k:'emergency',l:'緊急時の連絡体制',wide:true},
+    {k:'fee_note',l:'支援委託費の額と内訳（委託契約の前に所属機関へ示す内容）',wide:true,area:true}]}
+];
+var PROFILE_ROWS=[
+  {k:'offices',t:'支援業務を行う事務所',law:'変更したら14日以内に届出',todoke:true,cols:[{k:'name',l:'事務所名'},{k:'addr',l:'所在地'},{k:'tel',l:'電話'}]},
+  {k:'officers',t:'役員',law:'概要書：役員の氏名・役職・住所',cols:[{k:'name',l:'氏名'},{k:'title',l:'役職'},{k:'addr',l:'住所'}]},
+  {k:'staff',t:'支援責任者・支援担当者',law:'帳簿：支援担当者の氏名・役職',cols:[{k:'kind',l:'区分',sel:['支援責任者','支援担当者']},{k:'name',l:'氏名'},{k:'name_en',l:'氏名（ローマ字）'},{k:'title',l:'役職'},{k:'office',l:'所属事務所'},{k:'appointed',l:'選任日',type:'date'}]},
+  {k:'langs',t:'対応可能言語・通訳者',law:'変更したら14日以内に届出',todoke:true,cols:[{k:'lang',l:'言語'},{k:'name',l:'通訳者の氏名'},{k:'emp',l:'常勤・非常勤・委託',sel:['常勤','非常勤','委託']}]}
+];
+var mpDraft=null, mpMembers=[], mpMsg='', mpShown=false;
+function canEditOrg(){return me&&(me.role==='admin'||me.role==='operator');}
+function profExpiry(p){if(p.reg_expiry)return p.reg_expiry;if(!p.reg_date)return '';var d=new Date(p.reg_date+'T00:00:00');d.setFullYear(d.getFullYear()+5);d.setDate(d.getDate()-1);return ymd(d);}
+function nextTeiki(){var d=new Date(),y=d.getFullYear(),due=y+'-05-31';if(today()>due)due=(y+1)+'-05-31';return due;}
+function daysTo(s){return Math.round((new Date(s+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5);}
+async function loadMembers(){try{mpMembers=must(await db.from('members').select('user_id,role,display_name,created_at').order('created_at'));}catch(e){mpMembers=[];}}
+async function renderMypage(){
+  if(!myOrg){$('mpBody').innerHTML='<div class="empty">読み込み中…</div>';return;}
+  if(!mpDraft){mpDraft=JSON.parse(JSON.stringify(myOrg.profile||{}));if(!mpDraft.corp_name)mpDraft.corp_name=myOrg.name;await loadMembers();}
+  var p=mpDraft, ro=!canEditOrg(), exp=profExpiry(p), alerts=[];
+  if(!p.reg_no)alerts.push(['warn','登録番号がまだ入っていません。']);
+  if(exp){var dl=daysTo(exp);if(dl<0)alerts.push(['bad','登録の有効期限（'+exp+'）を過ぎています。']);else if(dl<=180)alerts.push(['warn','登録の有効期限まで'+dl+'日です（'+exp+'）。更新の申請を準備してください。']);}
+  var tk=nextTeiki(),td=daysTo(tk);
+  alerts.push([td<=45?'warn':'info','次の定期届出（支援実施状況）は '+tk+' まで（前年4月1日〜当年3月31日分、所属機関経由・連名）。あと'+td+'日。']);
+  if(p.shokai_expiry){var sd=daysTo(p.shokai_expiry);if(sd<=180)alerts.push([sd<0?'bad':'warn','有料職業紹介の許可の有効期限：'+p.shokai_expiry]);}
+  if(mpMsg)alerts.unshift(['bad',mpMsg]);
+  function fld(f){
+    var v=p[f.k]==null?'':p[f.k], id='mp_'+f.k, dis=ro?' disabled':'', ctl;
+    if(f.sel)ctl='<select id="'+id+'" data-p="'+f.k+'"'+dis+'>'+opts(f.sel,v,'選択')+'</select>';
+    else if(f.area)ctl='<textarea id="'+id+'" data-p="'+f.k+'"'+dis+'>'+esc(v)+'</textarea>';
+    else ctl='<input type="'+(f.type||'text')+'" id="'+id+'" data-p="'+f.k+'" value="'+esc(f.k==='reg_expiry'&&!v?'':v)+'"'+(f.k==='reg_expiry'&&!v&&exp?' placeholder="'+exp+'"':'')+dis+'>';
+    return '<label for="'+id+'">'+esc(f.l)+(f.todoke?'<span class="why">変更は14日以内に届出</span>':'')+(f.hint?'<span class="why">'+esc(f.hint)+'</span>':'')+'</label>'+(f.wide?'<div class="span3">'+ctl+'</div>':ctl);
+  }
+  function rowsHtml(R){
+    var list=Array.isArray(p[R.k])?p[R.k]:[];
+    return '<div class="kcard wide rows"><h3><span>'+esc(R.t)+' <span class="law">'+esc(R.law)+'</span></span>'+(ro?'':'<button class="btn btn-sm" data-add="'+R.k+'">＋ 行を追加</button>')+'</h3>'+
+      '<div style="overflow-x:auto"><table><thead><tr>'+R.cols.map(function(c){return '<th>'+esc(c.l)+'</th>';}).join('')+(ro?'':'<th></th>')+'</tr></thead><tbody>'+
+      (list.length?list.map(function(row,i){return '<tr>'+R.cols.map(function(c){var v=row[c.k]==null?'':row[c.k],a=' data-r="'+R.k+'" data-i="'+i+'" data-c="'+c.k+'"'+(ro?' disabled':'')+' aria-label="'+esc(c.l)+'"';return '<td>'+(c.sel?'<select'+a+'>'+opts(c.sel,v,'選択')+'</select>':'<input type="'+(c.type||'text')+'" value="'+esc(v)+'"'+a+'>')+'</td>';}).join('')+(ro?'':'<td><button class="btn btn-sm btn-danger" data-del="'+R.k+'" data-i="'+i+'">削除</button></td>')+'</tr>';}).join(''):'<tr><td colspan="'+(R.cols.length+1)+'" class="sub" style="padding:12px 6px">まだありません</td></tr>')+
+      '</tbody></table></div></div>';
+  }
+  var html='<div class="mp-alert">'+alerts.map(function(a){return '<div class="'+a[0]+'">'+esc(a[1])+'</div>';}).join('')+'</div>'+
+    (ro?'<div class="msg" style="background:#ebf8ff;color:#2b6cb0;border-color:#bee3f8">基本情報を変えられるのは管理者だけです。直したいところは管理者に伝えてください。</div>':'')+
+    '<div class="mp-grid'+(ro?' ro':'')+'">'+
+    PROFILE_SECS.map(function(S){return '<div class="kcard'+(S.t==='職員数'?'':' wide')+'"><h3><span>'+esc(S.t)+' <span class="law">'+esc(S.law)+'</span></span></h3><div class="form">'+S.f.map(fld).join('')+'</div></div>';}).join('')+
+    PROFILE_ROWS.map(rowsHtml).join('')+
+    '</div>'+
+    (ro?'':'<div style="display:flex;justify-content:flex-end;gap:8px;margin:14px 0"><span class="sub" style="align-self:center">最終更新 '+esc((myOrg.updated_at||'').slice(0,10))+'</span><button class="btn" id="mpReset">元に戻す</button><button class="btn btn-primary" id="mpSave">保存する</button></div>')+
+    '<div class="kcard"><h3><span>この登録支援機関のユーザー <span class="law">'+mpMembers.length+'人</span></span></h3>'+
+    '<div style="overflow-x:auto"><table><thead><tr><th>名前</th><th>権限</th><th>登録日</th></tr></thead><tbody>'+mpMembers.map(function(m){return '<tr><td>'+esc(m.display_name||'（名前未設定）')+'</td><td>'+esc(ROLE_NAME[m.role]||m.role)+'</td><td class="num sub">'+esc((m.created_at||'').slice(0,10))+'</td></tr>';}).join('')+'</tbody></table></div>'+
+    (canEditOrg()?'<div class="sec-title" style="font-size:14px">ユーザーを追加</div><div class="form">'+
+      '<label for="nu_name">氏名</label><input type="text" id="nu_name">'+
+      '<label for="nu_email">メールアドレス</label><input type="text" id="nu_email" autocomplete="off">'+
+      '<label for="nu_pass">初期パスワード</label><input type="text" id="nu_pass" autocomplete="off" placeholder="8文字以上">'+
+      '<label for="nu_role">権限</label><select id="nu_role"><option value="member">一般（基本情報は見るだけ）</option><option value="admin">管理者（基本情報の編集・ユーザー追加）</option></select>'+
+      '</div><div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn btn-primary btn-sm" id="nuAdd">追加する</button></div><div class="hint">追加した人には、メールアドレスと初期パスワードを伝えてください。</div>':'')+
+    '</div>';
+  $('mpBody').innerHTML=html; mpShown=true;
+  var box=$('mpBody');
+  box.querySelectorAll('[data-p]').forEach(function(el){var h=function(){mpDraft[el.dataset.p]=el.value.trim();};el.addEventListener('input',h);el.addEventListener('change',h);});
+  box.querySelectorAll('[data-r]').forEach(function(el){var h=function(){mpDraft[el.dataset.r][+el.dataset.i][el.dataset.c]=el.value.trim();};el.addEventListener('input',h);el.addEventListener('change',h);});
+  box.querySelectorAll('[data-add]').forEach(function(b){b.onclick=function(){var k=b.dataset.add;if(!Array.isArray(mpDraft[k]))mpDraft[k]=[];mpDraft[k].push({});renderMypage();};});
+  box.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){mpDraft[b.dataset.del].splice(+b.dataset.i,1);renderMypage();};});
+  if($('mpReset'))$('mpReset').onclick=function(){mpDraft=null;mpMsg='';renderMypage();};
+  if($('mpSave'))$('mpSave').onclick=saveMypage;
+  if($('nuAdd'))$('nuAdd').onclick=addMember;
+}
+function todokeChanges(before,after){
+  var out=[];
+  PROFILE_SECS.forEach(function(S){S.f.forEach(function(f){if(f.todoke&&String(before[f.k]||'')!==String(after[f.k]||''))out.push(f.l);});});
+  PROFILE_ROWS.forEach(function(R){if(R.todoke&&JSON.stringify(before[R.k]||[])!==JSON.stringify(after[R.k]||[]))out.push(R.t);});
+  return out;
+}
+async function saveMypage(){
+  var p=mpDraft, b=$('mpSave');
+  if(!String(p.corp_name||'').trim()){toast('名称を入れてください');return;}
+  PROFILE_ROWS.forEach(function(R){if(Array.isArray(p[R.k]))p[R.k]=p[R.k].filter(function(r){return Object.keys(r).some(function(k){return String(r[k]||'').trim();});});});
+  var changed=todokeChanges(myOrg.profile||{},p);
+  b.disabled=true;
+  try{
+    var r=must(await db.from('orgs').update({name:String(p.corp_name).trim(),profile:p,updated_at:new Date().toISOString()}).eq('id',myOrg.id).select('*'));
+    if(!r||!r.length)throw new Error('保存する権限がありません');
+    myOrg=r[0]; mpDraft=null; mpMsg='';
+    $('sbUser').textContent=(myOrg.name||'')+'　'+($('sbUser').textContent.split('　')[1]||'');
+    toast('保存しました');
+    await renderMypage();
+    if(changed.length){var d=new Date();d.setDate(d.getDate()+14);var n=document.createElement('div');n.className='warn';n.textContent='「'+changed.join('」「')+'」を変更しました。登録支援機関の変更の届出が必要な場合があります（変更日から14日以内：'+ymd(d)+'まで）。';$('mpBody').querySelector('.mp-alert').prepend(n);}
+  }catch(e){mpMsg='保存できませんでした：'+(e&&e.message||'');b.disabled=false;renderMypage();}
+}
+async function fnError(r){
+  if(r.error){try{var c=r.error.context;if(c&&typeof c.json==='function'){var j=await c.json();if(j&&j.message)return j.message;}}catch(e){}return r.error.message||'失敗しました';}
+  if(r.data&&r.data.ok===false)return r.data.message||'失敗しました';
+  return '';
+}
+async function addMember(){
+  var name=$('nu_name').value.trim(), email=$('nu_email').value.trim(), pass=$('nu_pass').value, role=$('nu_role').value, b=$('nuAdd');
+  if(!email||!pass){toast('メールアドレスと初期パスワードを入れてください');return;}
+  b.disabled=true;
+  var r=await db.functions.invoke('org-admin',{body:{action:'add_user',email:email,password:pass,displayName:name||email,role:role}});
+  var err=await fnError(r);
+  if(err){toast(err);b.disabled=false;return;}
+  toast(email+' を追加しました'); await loadMembers(); renderMypage();
+}
+
+/* ---------- 運営：登録支援機関の管理 ---------- */
+var orgList=null, orgBusy=false;
+async function loadOrgs(){var r=await db.functions.invoke('org-admin',{body:{action:'list_orgs'}});var err=await fnError(r);if(err)throw new Error(err);orgList=r.data.orgs||[];}
+async function renderOrgs(){
+  if(!(me&&me.role==='operator')){$('orgsBody').innerHTML='';return;}
+  if(orgList===null){$('orgsBody').innerHTML='<div class="empty">読み込み中…</div>';try{await loadOrgs();}catch(e){$('orgsBody').innerHTML='<div class="msg">'+esc(e.message)+'</div>';return;}}
+  $('orgsBody').innerHTML='<div class="kcard"><h3><span>登録支援機関を追加</span></h3><div class="form">'+
+    '<label for="no_name">登録支援機関の名称</label><div class="span3"><input type="text" id="no_name" placeholder="例：株式会社〇〇"></div>'+
+    '<label for="no_admin">管理者の氏名</label><input type="text" id="no_admin">'+
+    '<label for="no_email">管理者のメール</label><input type="text" id="no_email" autocomplete="off">'+
+    '<label for="no_pass">初期パスワード</label><input type="text" id="no_pass" autocomplete="off" placeholder="8文字以上">'+
+    '</div><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap"><span class="hint" style="margin:0">作った機関の管理者は、ログイン後にマイページで基本情報を入れ、自分の職員を追加できます。運営からは、各機関の見込み客や活動は見えません。</span><button class="btn btn-primary" id="noAdd"'+(orgBusy?' disabled':'')+'>作成する</button></div></div>'+
+    '<div class="tablewrap"><table><thead><tr><th>名称</th><th>登録番号</th><th class="r">ユーザー</th><th>作成日</th></tr></thead><tbody>'+
+    (orgList.length?orgList.map(function(o){return '<tr><td class="nm">'+esc(o.name)+(o.id===me.org_id?' <span class="sub">（自分の所属）</span>':'')+'</td><td>'+esc(o.reg_no||'')+'</td><td class="r num">'+o.members+'人</td><td class="num sub">'+esc((o.created_at||'').slice(0,10))+'</td></tr>';}).join(''):'<tr><td colspan="4" class="empty">まだありません</td></tr>')+
+    '</tbody></table></div>';
+  $('noAdd').onclick=async function(){
+    var name=$('no_name').value.trim(), email=$('no_email').value.trim(), pass=$('no_pass').value, admin=$('no_admin').value.trim();
+    if(!name||!email||!pass){toast('名称・メール・初期パスワードを入れてください');return;}
+    orgBusy=true; this.disabled=true;
+    var r=await db.functions.invoke('org-admin',{body:{action:'create_org',orgName:name,email:email,password:pass,displayName:admin||email}});
+    var err=await fnError(r); orgBusy=false;
+    if(err){toast(err);this.disabled=false;return;}
+    toast(name+' を作成しました'); orgList=null; renderOrgs();
+  };
+}
+
 /* ---------- ヒアリング項目 ---------- */
 function renderHearing(){
   $('hList').innerHTML=HEARING.map(function(g,gi){return '<div class="kcard"><h3>'+(gi+1)+'. '+esc(g.g)+'</h3><ol>'+g.items.map(function(it){return '<li><b>'+esc(it.l)+'</b>'+(it.t==='sel'?' <span class="opt">（'+esc(it.o.length>6?'分野の一覧から選択':it.o.join('／'))+'、または直接記入）</span>':'')+'<span class="why">'+esc(it.why)+'</span></li>';}).join('')+'</ol></div>';}).join('');
 }
 
 /* ---------- 描画 ---------- */
-function render(){
+function render(force){
   $('navDueN').textContent=leads.filter(isDue).length;
-  if(view==='kpi')renderKpi(); else if(view==='leads')renderLeads(); else renderHearing();
+  if(view==='kpi')renderKpi(); else if(view==='leads')renderLeads(); else if(view==='mypage'){if(force||!mpShown)renderMypage();} else if(view==='orgs'){if(force||orgList===null)renderOrgs();} else renderHearing();
 }
 
 /* ---------- 起動 ---------- */
@@ -806,6 +979,13 @@ async function boot(){
 async function startApp(ses){
   $('loginView').hidden=true; $('appView').hidden=false;
   $('sbUser').textContent=ses&&ses.user?ses.user.email:'';
+  try{
+    me=must(await db.from('members').select('*').eq('user_id',ses.user.id).maybeSingle());
+    if(!me){var n0=$('dbNotice');n0.hidden=false;n0.textContent='このアカウントは、どの登録支援機関にも所属していません。運営に連絡してください。';return;}
+    myOrg=must(await db.from('orgs').select('*').eq('id',me.org_id).single());
+    $('sbUser').textContent=(myOrg.name||'')+'　'+(ses.user.email||'')+'（'+ROLE_NAME[me.role]+'）';
+    $('nav-orgs').hidden=me.role!=='operator';
+  }catch(e){var n1=$('dbNotice');n1.hidden=false;n1.textContent='所属の読み込みに失敗しました：'+(e&&e.message||'');return;}
   try{await loadAll();}catch(e){var n=$('dbNotice');n.hidden=false;n.textContent='データを読み込めませんでした：'+(e&&e.message||'');}
   if(!startApp._t)startApp._t=setInterval(function(){if(document.visibilityState==='visible'&&$('drawer').hidden)loadAll().catch(function(){});},60000);
 }

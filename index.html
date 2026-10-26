@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261025.1 -->
+<!-- RSO_VERSION ver.20261026.1 -->
 <title>所属機関営業ボード</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -234,7 +234,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261025.1</div>
+      <div class="ver">ver.20261026.1</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -596,7 +596,7 @@ function renderDrawer(keepOpen){
     return '<details class="hg" data-gi="'+gi+'"'+((keepOpen?keepOpen[gi]:(gi===0&&S.filled<HCOUNT))?' open':'')+'><summary><span>'+esc(g.g)+' <span class="sub num">'+n+'/'+g.items.length+'</span></span></summary><div class="body"><div class="form">'+
       g.items.map(function(it){
         var v=h[it.id]||'', ctl;
-        if(it.t==='sel')ctl='<select data-h="'+it.id+'" id="'+it.id+'">'+opts(it.o,v,'未回答')+'</select>';
+        if(it.t==='sel')ctl='<input type="text" data-h="'+it.id+'" id="'+it.id+'" list="dl_'+it.id+'" value="'+esc(v)+'" placeholder="候補から選ぶか、直接入力"><datalist id="dl_'+it.id+'">'+it.o.map(function(o){return '<option value="'+esc(o)+'">';}).join('')+'</datalist>';
         else ctl='<input type="'+(it.t==='num'?'number':'text')+'" data-h="'+it.id+'" id="'+it.id+'" value="'+esc(v)+'">';
         return '<label for="'+it.id+'">'+esc(it.l)+'<span class="why">'+esc(it.why)+'</span></label>'+ctl;
       }).join('')+'</div></div></details>';
@@ -763,7 +763,7 @@ async function saveAi(){
 
 /* ---------- ヒアリング項目 ---------- */
 function renderHearing(){
-  $('hList').innerHTML=HEARING.map(function(g,gi){return '<div class="kcard"><h3>'+(gi+1)+'. '+esc(g.g)+'</h3><ol>'+g.items.map(function(it){return '<li><b>'+esc(it.l)+'</b>'+(it.t==='sel'?' <span class="opt">（'+esc(it.o.length>6?'分野の一覧から選択':it.o.join('／'))+'）</span>':'')+'<span class="why">'+esc(it.why)+'</span></li>';}).join('')+'</ol></div>';}).join('');
+  $('hList').innerHTML=HEARING.map(function(g,gi){return '<div class="kcard"><h3>'+(gi+1)+'. '+esc(g.g)+'</h3><ol>'+g.items.map(function(it){return '<li><b>'+esc(it.l)+'</b>'+(it.t==='sel'?' <span class="opt">（'+esc(it.o.length>6?'分野の一覧から選択':it.o.join('／'))+'、または直接記入）</span>':'')+'<span class="why">'+esc(it.why)+'</span></li>';}).join('')+'</ol></div>';}).join('');
 }
 
 /* ---------- 描画 ---------- */

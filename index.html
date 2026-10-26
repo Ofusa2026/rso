@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261026.3 -->
+<!-- RSO_VERSION ver.20261026.4 -->
 <title>所属機関営業ボード</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -237,8 +237,6 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
   <div class="sb-group">操作</div>
   <button class="nav-item" id="navNew">＋ 新規登録</button>
   <button class="nav-item" id="navAi">AIで一括登録</button>
-  <div class="sb-group">リマインド</div>
-  <button class="nav-item" id="navDue">期日切れ・今日 <span class="badge" id="navDueN">0</span></button>
   <div class="sb-group">登録支援機関</div>
   <button class="nav-item" id="nav-mypage" data-v="mypage">マイページ</button>
   <button class="nav-item" id="nav-orgs" data-v="orgs" hidden>登録支援機関の管理</button>
@@ -252,7 +250,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261026.3</div>
+      <div class="ver">ver.20261026.4</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -467,7 +465,6 @@ function setView(v){
 ['kpi','leads','hearing','mypage','orgs'].forEach(function(x){$('nav-'+x).addEventListener('click',function(){setView(x);});});
 $('navNew').addEventListener('click',function(){openLead(null);});
 $('navAi').addEventListener('click',function(){openAiImport();});
-$('navDue').addEventListener('click',function(){lDueOnly=true;lStage='open';setView('leads');});
 
 /* ---------- KPI ---------- */
 function monthActs(m,staff){return acts.filter(function(a){return a.date&&a.date.slice(0,7)===m&&(!staff||a.staff===staff);});}
@@ -559,7 +556,6 @@ function renderLeads(){
     var la=lastAct(l.id), cls=isOpen(l)&&l.nextDate?(l.nextDate<t?'row-over':(l.nextDate===t?'row-soon':'')):'';
     return '<tr class="click '+cls+'" data-id="'+esc(l.id)+'"><td><div class="nm">'+esc(l.name)+'</div><div class="sub">'+esc(l.pref||'')+'</div></td><td>'+esc(l.field||'')+'</td><td class="rank">'+esc(l.rank||'')+'</td><td>'+badge(l.stage)+'</td><td class="r num">'+(l.people?l.people+'人':'')+'</td><td>'+nextCell(l)+'</td><td class="num sub">'+hFilled(l)+'/'+HCOUNT+'</td><td>'+esc(l.staff||'')+'</td><td class="num sub">'+(la?md(la.date):'')+'</td></tr>';
   }).join(''):'<tr><td colspan="9" class="empty">'+(leads.length?'条件に合う見込み客はいません':'見込み客はまだ登録されていません。右上の「＋ 新規登録」から追加します')+'</td></tr>';
-  var dn=leads.filter(isDue).length; $('navDueN').textContent=dn;
 }
 $('stageCards').addEventListener('click',function(e){var b=e.target.closest('.kpi');if(b){lStage=b.dataset.s;renderLeads();}});
 $('alertbar').addEventListener('click',function(){lDueOnly=!lDueOnly;renderLeads();});
@@ -959,7 +955,6 @@ function renderHearing(){
 
 /* ---------- 描画 ---------- */
 function render(force){
-  $('navDueN').textContent=leads.filter(isDue).length;
   if(view==='kpi')renderKpi(); else if(view==='leads')renderLeads(); else if(view==='mypage'){if(force||!mpShown)renderMypage();} else if(view==='orgs'){if(force||orgList===null)renderOrgs();} else renderHearing();
 }
 

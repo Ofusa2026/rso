@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261026.4 -->
+<!-- RSO_VERSION ver.20261026.5 -->
 <title>所属機関営業ボード</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -24,6 +24,7 @@ button,input,select,textarea{font-family:inherit;color:var(--text)}
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:var(--side);color:#fff;padding:env(safe-area-inset-top,0px) 0 20px env(safe-area-inset-left,0px);overflow-y:auto;z-index:30}
 .sb-logo{padding:20px 18px 14px;font-size:15px;font-weight:700;color:#fff}
 .sb-group{padding:12px 18px 4px;font-size:10px;color:var(--side-group);font-weight:700;letter-spacing:1px}
+[hidden]{display:none!important}   /* ver.20261026.5: 運営以外に「登録支援機関の管理」が見えていたのを修正（display:flex が hidden を上書きしていた） */
 .nav-item{display:flex;align-items:center;gap:9px;width:calc(100% - 16px);text-align:left;margin:1px 8px;padding:9px 14px;color:var(--side-text);font-size:13px;cursor:pointer;border:none;background:transparent;border-radius:6px}
 .nav-item:hover{background:rgba(255,255,255,.10);color:#fff}
 .nav-item.on{background:rgba(255,255,255,.14);color:#fff;font-weight:700}
@@ -250,7 +251,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261026.4</div>
+      <div class="ver">ver.20261026.5</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261104.10 -->
+<!-- RSO_VERSION ver.20261104.11 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -340,7 +340,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261104.10</div>
+      <div class="ver">ver.20261104.11</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1346,6 +1346,9 @@ function modalHandler(e){
     if(b.dataset.xclose){closeModal();return;}
     if(b.dataset.xtab){M.tab=b.dataset.xtab;drawModal();return;}
     if(b.dataset.lgbook){ledgerFromModal(b.dataset.lgbook,b.dataset.lgmode);return;}
+    if(b.dataset.osched){openSched(b.dataset.osched);return;}
+    if(b.dataset.nsched){var nw=byId(D.wk,b.dataset.pw)||{};openSched(null,{worker_id:nw.id,company_id:nw.company_id,event_type:b.dataset.nsched});return;}
+    if(b.dataset.ofield){M.tab='basic';drawModal();focusField(b.dataset.ofield);return;}
     if(b.dataset.pform&&b.dataset.pw){var pw=byId(D.wk,b.dataset.pw);if(pw)printForm(b.dataset.pform,{worker:pw});return;}
     if(b.dataset.xsave){M.save();return;}
     if(b.dataset.xdel){M.del();return;}
@@ -1839,7 +1842,7 @@ function gcalUrl(s){
 }
 function openSched(id,preset){
   var row=id?byId(D.sc,id):null;if(id&&!row)return;preset=preset||{};
-  var d=row?JSON.parse(JSON.stringify(row)):{event_type:'',status:'planned',all_day:true,scheduled_at:preset.date||today(),staff_names:[myName()],company_id:preset.company_id||null,worker_id:preset.worker_id||null};
+  var d=row?JSON.parse(JSON.stringify(row)):{event_type:preset.event_type||'',status:'planned',all_day:true,scheduled_at:preset.date||today(),staff_names:[myName()],company_id:preset.company_id||null,worker_id:preset.worker_id||null};
   d.wids=row?[row.worker_id]:(preset.worker_id?[preset.worker_id]:[]);
   if(!d.company_id&&d.worker_id){var w0=byId(D.wk,d.worker_id);if(w0)d.company_id=w0.company_id;}
   d.monthOnly=!!(row&&!row.scheduled_at&&row.plan_ym);d._cq='';d._wq='';
@@ -2858,16 +2861,22 @@ function printForm(kind,a){
   if(kind==='5-10'){if(!w.company_id){toast('人材に所属機関が入っていません');return;}openForm('支援委託契約書_'+((coOf(w.company_id)||{}).name||'')+'_'+w.name,contractPages(w));return;}
 }
 function formStatus(k,w){var last=function(t){return D.sc.filter(function(s){return s.worker_id===w.id&&s.event_type===t&&schedDate(s);}).sort(function(a,b){return String(schedDate(b)).localeCompare(String(schedDate(a)));})[0];};
-  if(k==='5-9'||k==='5-8'){var s=last(k==='5-9'?'pre_guidance':'life_orientation');return s?signedCell(rec(s).signed_url,rec(s).signed_date):'<span class="lsub">実施記録なし</span>';}
-  if(k==='5-5'||k==='5-6'){var m=last('periodic_meeting');if(!m)return '<span class="lsub">面談記録なし</span>';var x=(rec(m)[k==='5-5'?'r55':'r56'])||{};return '<span class="lsub">'+esc(lvDate(schedDate(m)))+'の面談</span><br>'+signedCell(x.signed_url,x.signed_date);}
-  if(k==='5-10')return signedCell(w.support_contract_pdf_url,w.support_contract_signed_date);return '';}
+  var bOpen=function(s,lab){return '<button type="button" class="btn btn-sm" data-osched="'+esc(s.id)+'" style="margin-top:4px">'+esc(lab)+'</button>';};
+  var bNew=function(t,lab){return '<button type="button" class="btn btn-sm" data-nsched="'+t+'" data-pw="'+esc(w.id)+'" style="margin-top:4px">'+esc(lab)+'</button>';};
+  if(k==='5-9'||k==='5-8'){var t=k==='5-9'?'pre_guidance':'life_orientation',s=last(t);
+    if(!s)return '<span class="sub">実施記録なし</span><br>'+bNew(t,'＋ 実施記録を作る');
+    var x=rec(s);return signedCell(x.signed_url,x.signed_date)+'<br>'+bOpen(s,okUrl(x.signed_url)?'URLを変える':'URLを入れる');}
+  if(k==='5-5'||k==='5-6'){var m=last('periodic_meeting');if(!m)return '<span class="sub">面談記録なし</span><br>'+bNew('periodic_meeting','＋ 面談記録を作る');
+    var y=(rec(m)[k==='5-5'?'r55':'r56'])||{};return '<span class="sub">'+esc(lvDate(schedDate(m)))+'の面談</span><br>'+signedCell(y.signed_url,y.signed_date)+'<br>'+bOpen(m,okUrl(y.signed_url)?'URLを変える':'URLを入れる');}
+  if(k==='5-10')return signedCell(w.support_contract_pdf_url,w.support_contract_signed_date)+'<br><button type="button" class="btn btn-sm" data-ofield="support_contract_pdf_url" style="margin-top:4px">'+(okUrl(w.support_contract_pdf_url)?'URLを変える':'URLを入れる')+'</button>';
+  return '';}
 function formButtons(w){
   return '<div class="xsec"><div class="xsec-t">参考様式（印刷して署名・押印をもらう書類）</div><table class="tbl"><thead><tr><th>様式</th><th>書類</th><th>署名済みPDF</th><th></th></tr></thead><tbody>'+
     [['5-9','参考様式第5-9号','事前ガイダンスの確認書','支援スケジュールの「事前ガイダンス」の日時・説明者が入ります'],['5-8','参考様式第5-8号','生活オリエンテーションの確認書','「生活オリエンテーション」の日時（最大3回）・説明者が入ります'],
      ['5-5','参考様式第5-5号','定期面談報告書（外国人用）','いちばん新しい定期面談の内容が入ります（ほかの回は支援スケジュールの予定から）'],['5-6','参考様式第5-6号','定期面談報告書（監督者用）','同上'],
      ['5-10','参考様式第5-10号','支援委託契約書（別紙 費用内訳つき）','所属機関の「契約・委託費」タブの内容が入ります']].map(function(x){
       return '<tr><td style="white-space:nowrap;color:#2b6cb0;font-weight:700">'+esc(x[1])+'</td><td>'+esc(x[2])+'<div class="sub">'+esc(x[3])+'</div></td><td style="font-size:12px">'+formStatus(x[0],w)+'</td><td style="text-align:right"><button type="button" class="btn btn-sm btn-primary" data-pform="'+x[0]+'" data-pw="'+esc(w.id)+'">印刷・PDF</button></td></tr>';}).join('')+'</tbody></table>'+
-    '<div class="hint">署名済みPDFのURLは、5-9・5-8・5-5・5-6は支援スケジュールの各予定に、5-10は「基本情報」タブの「8. 支援情報」に入れます。</div></div>';
+    '<div class="hint">「URLを入れる」を押すと入力欄が開きます。5-9・5-8・5-5・5-6はその予定（支援スケジュール）の画面、5-10は「基本情報」タブの欄です。2回目以降の面談などは「支援スケジュール」タブから各回を開いて入れてください。</div></div>';
 }
 
 function tool(label,fn,primary){return {label:label,fn:fn,primary:primary};}

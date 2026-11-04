@@ -1101,3 +1101,19 @@ do $$ begin
   begin alter publication supabase_realtime add table public.chat_messages; exception when duplicate_object then null; end;
   begin alter publication supabase_realtime add table public.team_chat_messages; exception when duplicate_object then null; end;
 end $$;
+
+-- ===== 2026/11/04 監査帳簿：記録欄の追加 =====
+-- 支援スケジュール：帳簿④（支援実施状況）に必要な「実施場所・通訳者・種別ごとの記録」
+alter table public.support_schedules add column if not exists place text;
+alter table public.support_schedules add column if not exists interpreter text;
+alter table public.support_schedules add column if not exists record jsonb default '{}'::jsonb;
+-- 所属機関：帳簿②（支援委託契約管理簿）
+alter table public.companies add column if not exists support_contract_date date;
+alter table public.companies add column if not exists support_contract_end date;
+alter table public.companies add column if not exists support_contract_scope text;
+alter table public.companies add column if not exists support_cost_note text;
+-- 外国人材：帳簿③（支援対象者管理簿）
+alter table public.workers add column if not exists support_plan_date date;
+alter table public.workers add column if not exists support_start_date date;
+alter table public.workers add column if not exists support_end_date date;
+alter table public.workers add column if not exists support_end_reason text;

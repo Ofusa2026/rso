@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261104.4 -->
+<!-- RSO_VERSION ver.20261104.5 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -340,7 +340,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261104.4</div>
+      <div class="ver">ver.20261104.5</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -2456,7 +2456,7 @@ function coName(id){var c=coOf(id);return c?c.name:'';}
 function staffStr(s){return (s.staff_names||[]).join('、');}
 function rec(s){return s.record||{};}
 function tbl(cols,rows,empty){
-  if(!rows.length)return '<div class="lempty">'+esc(empty||'対象期間の記録はありません')+'</div>';
+  if(!rows.length)return '<div class="lempty">'+esc(empty||'記録はありません')+'</div>';
   return '<table class="ltbl"><thead><tr><th class="lno">No.</th>'+cols.map(function(c){return '<th'+(c.w?' style="width:'+c.w+'"':'')+'>'+esc(c.l)+'</th>';}).join('')+'</tr></thead><tbody>'+
     rows.map(function(r,i){return '<tr><td class="lno">'+(i+1)+'</td>'+cols.map(function(c){var v=c.f(r);return '<td'+(c.pre?' class="lpre"':'')+'>'+(c.html?v:esc(v==null?'':v))+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table>';
 }
@@ -2476,13 +2476,13 @@ function bookBody(k){
     html+='<h3>4. 支援責任者・支援担当者</h3>'+tbl([{l:'区分',f:function(r){return r.kind;}},{l:'氏名',f:function(r){return r.name+(r.name_en?'（'+r.name_en+'）':'');}},{l:'役職',f:function(r){return r.title;}},{l:'所属事務所',f:function(r){return r.office;}},{l:'選任日',f:function(r){return lvDate(r.appointed);}}],pf.staff||[],'マイページに支援責任者・支援担当者が登録されていません');
     html+='<h3>5. 対応可能言語・通訳者</h3>'+tbl([{l:'言語',f:function(r){return r.lang;}},{l:'通訳者の氏名',f:function(r){return r.name;}},{l:'雇用形態',f:function(r){return r.emp;}}],pf.langs||[],'マイページに対応言語が登録されていません');
     html+='<h3>6. 相談に応じる体制</h3>'+kv([['相談に応じる曜日・時間帯',pf.support_hours],['相談の方法',pf.support_methods],['緊急時の連絡体制',pf.emergency]]);
-    var ws=D.wk.filter(isSupported),rows=monthsOf(f,t).map(function(ym){var a=ym+'-01',b=lastDay(ym);
+    var ws=D.wk.filter(isSupported),st0=ws.map(supStart).filter(Boolean).sort()[0]||today(),rows=monthsOf(st0,today()).map(function(ym){var a=ym+'-01',b=lastDay(ym);
       var act=ws.filter(function(w){return wkInPeriod(w,a,b);});
       return {ym:ym,n:act.length,co:uniq(act.map(function(w){return w.company_id;})).length,
         st:ws.filter(function(w){return inRange(supStart(w),a,b);}).length,
         en:ws.filter(function(w){return inRange(supEnd(w),a,b);}).length,
         lost:ws.filter(function(w){return inRange(supEnd(w),a,b)&&supReason(w)==='行方不明';}).length};});
-    html+='<h3>7. 毎月の支援の状況</h3>'+tbl([{l:'年月',f:function(r){return r.ym.replace('-','年')+'月';}},{l:'支援対象者数',f:function(r){return r.n+'人';}},{l:'うち支援開始',f:function(r){return r.st+'人';}},{l:'うち支援終了',f:function(r){return r.en+'人';}},{l:'行方不明者数',f:function(r){return r.lost+'人';}},{l:'支援している所属機関数',f:function(r){return r.co+'社';}}],rows,'期間を指定してください');
+    html+='<h3>7. 毎月の支援の状況</h3>'+tbl([{l:'年月',f:function(r){return r.ym.replace('-','年')+'月';}},{l:'支援対象者数',f:function(r){return r.n+'人';}},{l:'うち支援開始',f:function(r){return r.st+'人';}},{l:'うち支援終了',f:function(r){return r.en+'人';}},{l:'行方不明者数',f:function(r){return r.lost+'人';}},{l:'支援している所属機関数',f:function(r){return r.co+'社';}}],rows,'支援している人材がいません');
     if(!pf.reg_no)warn.push('マイページに登録番号がありません');
     if(!(pf.staff||[]).length)warn.push('マイページに支援責任者・支援担当者がありません');
     if(!(pf.officers||[]).length)warn.push('マイページに役員がありません');
@@ -2494,7 +2494,7 @@ function bookBody(k){
     html=tbl([{l:'所属機関の名称',f:function(c){return c.name;},w:'14%'},{l:'法人番号',f:function(c){return c.corp_no;}},{l:'所在地',f:function(c){return [c.zip?'〒'+c.zip:'',c.address].filter(Boolean).join(' ');},w:'15%'},{l:'代表者',f:function(c){return [c.rep_title,c.rep_name].filter(Boolean).join(' ');}},
       {l:'契約締結日',f:function(c){return lvDate(c.support_contract_date);}},{l:'契約期間（終了日）',f:function(c){return c.support_contract_end?'〜'+lvDate(c.support_contract_end):(c.support_contract_date?'定めなし／自動更新':'');}},
       {l:'受託した支援業務の範囲',f:function(c){return c.support_contract_scope||'';},pre:true,w:'16%'},{l:'支援委託費（1人あたり・税抜）',f:function(c){return c.fee_per_person!=null&&c.fee_per_person!==''?fmt(c.fee_per_person)+'円':'';}},
-      {l:'支援経費の収支・内訳',f:function(c){return c.support_cost_note||'';},pre:true,w:'14%'},{l:'期間中の支援対象者数',f:function(c){return act.filter(function(w){return w.company_id===c.id;}).length+'人';}}],cos,'対象期間に支援している所属機関がありません');
+      {l:'支援経費の収支・内訳',f:function(c){return c.support_cost_note||'';},pre:true,w:'14%'},{l:'支援対象者数',f:function(c){return act.filter(function(w){return w.company_id===c.id;}).length+'人';}}],cos,'支援している所属機関がありません');
     var miss=cos.filter(function(c){return !c.support_contract_date;}),ms=cos.filter(function(c){return !c.support_contract_scope;});
     if(miss.length)warn.push('契約締結日が未入力：'+miss.map(function(c){return c.name;}).join('、'));
     if(ms.length)warn.push('受託した支援業務の範囲が未入力：'+ms.map(function(c){return c.name;}).join('、'));
@@ -2505,7 +2505,7 @@ function bookBody(k){
     html=tbl([{l:'管理番号',f:function(w){return w.management_no;}},{l:'氏名',f:function(w){return (w.name||'')+(w.name_kana?'\n'+w.name_kana:'');},pre:true,w:'12%'},{l:'性別',f:function(w){return w.gender;}},{l:'生年月日',f:function(w){return lvDate(w.birthdate);}},{l:'国籍',f:function(w){return w.nationality;}},
       {l:'在留カード番号',f:function(w){return w.residence_card;}},{l:'在留資格・期限',f:function(w){return [w.visa_status,w.visa_expiry?'〜'+lvDate(w.visa_expiry):''].filter(Boolean).join('\n');},pre:true},
       {l:'所属機関',f:function(w){return coName(w.company_id);},w:'12%'},{l:'分野・職種',f:function(w){return [w.applicant_field,w.job_category].filter(Boolean).join('／');}},
-      {l:'支援計画（1-17号）作成日',f:function(w){return lvDate(w.support_plan_date);}},{l:'支援開始日',f:function(w){return lvDate(supStart(w));}},{l:'支援終了日',f:function(w){return lvDate(supEnd(w));}},{l:'終了の理由',f:function(w){return supReason(w);}}],ws3,'対象期間に支援した人材がいません');
+      {l:'支援計画（1-17号）作成日',f:function(w){return lvDate(w.support_plan_date);}},{l:'支援開始日',f:function(w){return lvDate(supStart(w));}},{l:'支援終了日',f:function(w){return lvDate(supEnd(w));}},{l:'終了の理由',f:function(w){return supReason(w);}}],ws3,'支援した人材がいません');
     var np=ws3.filter(function(w){return !w.support_plan_date;}),ns=ws3.filter(function(w){return !supStart(w);}),nr=ws3.filter(function(w){return supEnd(w)&&!supReason(w);});
     if(np.length)warn.push('支援計画の作成日が未入力：'+np.length+'名');
     if(ns.length)warn.push('支援開始日が未入力：'+ns.map(function(w){return w.name;}).join('、'));
@@ -2554,17 +2554,17 @@ function bookBody(k){
   else cols=C.concat([place,method,content,staff,interp]);
   if(k==='a11')cols[cols.length-3].f=function(r){return lvDate(rec(r.s).req_date);};
   html=tbl(cols,rows4);
-  if(plan)warn.push('対象期間に「予定」のまま実施済になっていない記録が '+plan+'件あります（実施済にすると帳簿に載ります）');
+  if(plan)warn.push('「予定」のまま実施済になっていない記録が '+plan+'件あります（実施済にすると帳簿に載ります）');
   var noStaff=rows4.filter(function(r){return !staffStr(r.s);}).length;if(noStaff)warn.push('担当者が入っていない記録が '+noStaff+'件あります');
   if(['a1','a3','a4','a5','a6','a8'].indexOf(k)>=0){var nc4=rows4.filter(function(r){return !rec(r.s).content&&!r.s.notes;}).length;if(nc4)warn.push('実施内容が入っていない記録が '+nc4+'件あります');}
   if(k==='a1'||k==='a4'){var need=lvWorkers().filter(function(w){return !rows4.some(function(r){return r.w&&r.w.id===w.id;})&&!D.sc.some(function(s){return s.worker_id===w.id&&s.event_type===B.ev[0];})&&!w[B.wf[0]];});
-    var nw=need.filter(function(w){return inRange(supStart(w),f,t);});if(nw.length)warn.push('期間中に支援を始めたのに'+B.t.replace('の実施記録','')+'の記録がない人材：'+nw.map(function(w){return w.name;}).join('、'));}
+    var nw=need.filter(function(w){return inRange(supStart(w),f,t);});if(nw.length)warn.push('支援を始めたのに'+B.t.replace('の実施記録','')+'の記録がない人材：'+nw.map(function(w){return w.name;}).join('、'));}
   if(k==='a10'){var nm=rows4.filter(function(r){return !(r.mt&&r.mt.result_memo);}).length;if(nm)warn.push('対応結果が未記入の面談が '+nm+'件あります');}
   return {html:html,warn:warn,fix:'sched'};
 }
 function bookHead(B){var o=R.org()||{},pf=o.profile||{};
   return '<div class="lhead"><div class="ltitle">'+esc((B.no?B.no+' ':'')+B.t)+'</div><div class="lmeta"><div>登録支援機関：'+esc(pf.corp_name||o.name||'')+(pf.reg_no?'（登録番号 '+esc(pf.reg_no)+'）':'')+'</div>'+
-    '<div>対象期間：'+esc(lvDate(VL.from)||'—')+' 〜 '+esc(lvDate(VL.to)||'—')+(VL.co?'　所属機関：'+esc(coName(VL.co)):'')+(VL.wk?'　対象者：'+esc((byId(D.wk,VL.wk)||{}).name||''):'')+'</div><div>作成日：'+esc(lvDate(today()))+'</div></div></div>';}
+    '<div>対象：これまでのすべての記録'+(VL.co?'　所属機関：'+esc(coName(VL.co)):'')+(VL.wk?'　対象者：'+esc((byId(D.wk,VL.wk)||{}).name||''):'')+'</div><div>作成日：'+esc(lvDate(today()))+'</div></div></div>';}
 var LCSS='.lhead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:2px solid #1a365d;padding-bottom:6px;margin-bottom:8px}.ltitle{font-size:17px;font-weight:700}.lmeta{font-size:10.5px;color:#444;text-align:right;line-height:1.6}'+
   '.lbook h3{font-size:12px;background:#1a365d;color:#fff;padding:3px 8px;margin:12px 0 0}.ltbl,.lkv{width:100%;border-collapse:collapse;font-size:10.5px}.ltbl th,.ltbl td,.lkv th,.lkv td{border:1px solid #9aa4b2;padding:4px 5px;vertical-align:top;text-align:left}'+
   '.ltbl th{background:#eef2f7;font-weight:600;white-space:nowrap}.lkv th{background:#eef2f7;width:24%;font-weight:600}.lno{width:26px;text-align:center!important}.lpre{white-space:pre-wrap}.lsub{color:#555;font-size:9.5px}.lempty{border:1px dashed #9aa4b2;padding:14px;text-align:center;color:#666;font-size:11px}'+
@@ -2582,41 +2582,35 @@ function printBook(){
 /* 所属機関・人材の詳細画面から帳簿を出す（その所属機関／その人材だけに絞る） */
 function ledgerTabHtml(kind,d){
   var ks=kind==='co'?['b2','b3','a1','a2','a3','a4','a5','a6','a7','a8','a9','a10','a11']:['b3','a1','a2','a3','a4','a5','a6','a7','a8','a9','a10','a11'];
-  var f0=kind==='wk'&&supStart(d)&&supStart(d)<fyStart()?supStart(d):fyStart();
   return '<div class="xsec"><div class="xsec-t">'+(kind==='co'?'この所属機関':'この人材')+'の監査帳簿</div>'+
-    '<div class="toolbar" style="margin-bottom:8px"><label class="sub">期間 <input type="date" id="lgFrom" value="'+esc(f0)+'"></label><label class="sub">〜 <input type="date" id="lgTo" value="'+esc(today())+'"></label></div>'+
     '<table class="tbl"><tbody>'+ks.map(function(k){var B=BOOK_BY[k];return '<tr><td style="white-space:nowrap;font-weight:700;color:#2b6cb0">'+esc(B.no)+'</td><td>'+esc(B.t)+'</td><td style="white-space:nowrap;text-align:right">'+
       '<button type="button" class="btn btn-sm" data-lgbook="'+k+'" data-lgmode="view">画面で見る</button> <button type="button" class="btn btn-sm btn-primary" data-lgbook="'+k+'" data-lgmode="print">印刷・PDF</button></td></tr>';}).join('')+'</tbody></table>'+
-    '<div class="hint" style="margin-top:6px">'+(kind==='co'?'この所属機関で支援した人材の分だけを出します。':'この人材の分だけを出します。')+'①支援実施体制管理簿は機関全体の帳簿なので、左メニューの「監査帳簿」から出してください。</div></div>';
+    '<div class="hint" style="margin-top:6px">'+(kind==='co'?'この所属機関で支援した人材の、これまでの記録をすべて出します。':'この人材の、これまでの記録をすべて出します。')+'①支援実施体制管理簿は機関全体の帳簿なので、左メニューの「監査帳簿」から出してください。</div></div>';
 }
 function ledgerFromModal(k,mode){
   if(!M||!M.dr)return;var isCo=M.mod==='companies',d=M.dr;
-  var f=($('lgFrom')||{}).value||fyStart(),t=($('lgTo')||{}).value||today();
   var keep=JSON.parse(JSON.stringify(VL));
-  VL.book=k;VL.from=f;VL.to=t;VL.co=isCo?d.id:(d.company_id||'');VL.wk=isCo?'':d.id;
+  VL.book=k;VL.from='';VL.to='';VL.co=isCo?d.id:(d.company_id||'');VL.wk=isCo?'':d.id;
   if(mode==='print'){printBook();VL=keep;return;}
   closeModal();if(M){VL=keep;return;}R.setView('ledger');
 }
 function renderLedger(){
-  var el=$('v-ledger');if(!VL.from){VL.from=fyStart();VL.to=today();}
+  var el=$('v-ledger');VL.from='';VL.to='';
   var B=BOOK_BY[VL.book]||BOOKS[0],r=bookBody(B.k);
   var cos=D.co.slice().sort(byFolder),wks=D.wk.filter(function(w){return !VL.co||w.company_id===VL.co;});
   el.innerHTML='<style>'+LCSS+'.lg{display:grid;grid-template-columns:270px 1fr;gap:14px;align-items:start}.lmenu{display:flex;flex-direction:column;gap:4px}.lmenu button{text-align:left;border:1px solid var(--line,#e2e8f0);background:var(--card,#fff);border-radius:8px;padding:8px 10px;cursor:pointer;font:inherit;color:inherit}.lmenu button.on{border-color:#2b6cb0;box-shadow:0 0 0 2px rgba(43,108,176,.18);font-weight:700}.lmenu .n{color:#2b6cb0;font-weight:700;margin-right:4px}.lmenu .g{font-size:11px;color:#718096;margin:8px 2px 2px}'+
     '.lprev{background:#fff;color:#111;border:1px solid var(--line,#e2e8f0);border-radius:10px;padding:16px;overflow-x:auto}.lwarn{background:#fffbeb;border:1px solid #f6e05e;color:#744210;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12.5px}.lwarn li{margin:2px 0 2px 16px}.lbar{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-bottom:10px}.lbar label{display:flex;flex-direction:column;font-size:11px;color:#718096;gap:2px}.lbar select,.lbar input{min-width:120px}'+
     '@media(max-width:860px){.lg{grid-template-columns:1fr}}</style>'+
     '<div class="lg"><div class="lmenu">'+BOOKS.map(function(b,i){return (i===0?'<div class="g">体制・契約・対象者</div>':i===3?'<div class="g">④ 支援実施状況に係る帳簿</div>':i===13?'<div class="g">その他</div>':'')+'<button data-lb="'+b.k+'" class="'+(b.k===B.k?'on':'')+'"><span class="n">'+esc(b.no)+'</span>'+esc(b.t)+'</button>';}).join('')+'</div>'+
-    '<div><div class="lbar"><label>期間（から）<input type="date" id="lvFrom" value="'+esc(VL.from)+'"></label><label>期間（まで）<input type="date" id="lvTo" value="'+esc(VL.to)+'"></label>'+
+    '<div><div class="lbar">'+
       '<label>所属機関<select id="lvCo">'+optHtml(cos.map(function(c){return [c.id,coLabel(c)];}),VL.co,'すべて')+'</select></label>'+
       (B.k!=='b1'?'<label>支援対象者<select id="lvWk">'+optHtml(wks.map(function(w){return [w.id,(w.management_no?'['+w.management_no+'] ':'')+(w.name||'')];}),VL.wk,'すべて')+'</select></label>':'')+
-      '<button class="btn btn-sm" id="lvFy">今年度</button><button class="btn btn-sm" id="lvLy">前年度</button><span style="flex:1"></span><button class="btn btn-primary" id="lvPrint">印刷・PDFで保存</button></div>'+
+      '<span style="flex:1"></span><button class="btn btn-primary" id="lvPrint">印刷・PDFで保存</button></div>'+
       (B.d?'<div class="sub" style="margin-bottom:8px">'+esc(B.d)+'</div>':'')+
       (r.warn.length?'<div class="lwarn"><b>監査の前に確認（印刷には出ません）</b><ul>'+r.warn.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>':'')+
       '<div class="lprev"><div class="lbook">'+bookHead(B)+r.html+'</div></div></div></div>';
   el.querySelectorAll('[data-lb]').forEach(function(b){b.onclick=function(){VL.book=b.dataset.lb;renderLedger();};});
-  $('lvFrom').onchange=function(){VL.from=this.value;renderLedger();};$('lvTo').onchange=function(){VL.to=this.value;renderLedger();};
   $('lvCo').onchange=function(){VL.co=this.value;VL.wk='';renderLedger();};if($('lvWk'))$('lvWk').onchange=function(){VL.wk=this.value;renderLedger();};
-  $('lvFy').onclick=function(){VL.from=fyStart();VL.to=today();renderLedger();};
-  $('lvLy').onclick=function(){var y=Number(fyStart().slice(0,4))-1;VL.from=y+'-04-01';VL.to=(y+1)+'-03-31';renderLedger();};
   $('lvPrint').onclick=printBook;
 }
 

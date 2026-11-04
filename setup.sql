@@ -1121,3 +1121,8 @@ alter table public.workers add column if not exists support_end_reason text;
 -- ===== 2026/11/04 支援委託契約書（参考様式第5-10号）用 =====
 alter table public.companies add column if not exists support_fee_items jsonb default '[]'::jsonb;
 alter table public.companies add column if not exists support_court text;
+
+-- ===== 2026/11/04 署名済み支援委託契約書（5-10号）の保管 =====
+alter table public.workers add column if not exists support_contract_signed_date date;
+alter table public.workers add column if not exists support_contract_pdf_url text;
+-- 5-9・5-8・5-5・5-6 の署名済みPDFは support_schedules.record（signed_url / signed_date、r55・r56 の中）に入る

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261104.11 -->
+<!-- RSO_VERSION ver.20261104.12 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -340,7 +340,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261104.11</div>
+      <div class="ver">ver.20261104.12</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -536,6 +536,10 @@ function fmt(n){return Number(n||0).toLocaleString('ja-JP');}
 function toast(t){var el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true;},2200);}
 function opts(list,sel,blank){return (blank!=null?'<option value="">'+esc(blank)+'</option>':'')+list.map(function(o){return '<option'+(o===sel?' selected':'')+'>'+esc(o)+'</option>';}).join('');}
 function leadById(id){for(var i=0;i<leads.length;i++)if(leads[i].id===id)return leads[i];return null;}
+/* 担当者として選べる人：マイページの支援責任者・支援担当者と、支援担当者にならない従業員 */
+function orgStaff(){var pf=(myOrg&&myOrg.profile)||{},r=[],o={};(pf.staff||[]).concat(pf.employees||[]).forEach(function(x){var n=String(x.name||'').trim();if(n&&!o[n]){o[n]=1;r.push(n);}});return r;}
+function staffSel(id,cur){var o=orgStaff(),h='<option value="">（未選択）</option>'+o.map(function(n){return '<option'+(n===cur?' selected':'')+'>'+esc(n)+'</option>';}).join('');if(cur&&o.indexOf(cur)<0)h+='<option selected>'+esc(cur)+'</option>';
+  return '<select id="'+id+'">'+h+'</select>'+(o.length?'':'<div class="sub" style="font-size:11px">担当者はマイページの「支援責任者・支援担当者」「支援担当者にならない従業員」から選びます</div>');}
 function staffList(){var s={};leads.forEach(function(l){if(l.staff)s[l.staff]=1;});acts.forEach(function(a){if(a.staff)s[a.staff]=1;});return Object.keys(s).sort();}
 function lastAct(id){var best=null;acts.forEach(function(a){if(a.leadId===id&&a.result!=='不通'&&(!best||a.date>best.date))best=a;});return best;}
 function isOpen(l){return l.stage!=='受注'&&l.stage!=='失注'&&l.stage!=='保留';}
@@ -714,7 +718,7 @@ function renderDrawer(keepOpen){
     '<label for="d_stage">ステータス</label><select id="d_stage">'+opts(STAGES,L.stage)+'</select>'+
     '<label for="d_rank">ランク</label><select id="d_rank">'+opts(['A','B','C'],L.rank)+'</select>'+
     '<label for="d_source">獲得経路</label><select id="d_source">'+opts(SOURCES,L.source)+'</select>'+
-    '<label for="d_staff">担当</label><input type="text" id="d_staff" list="staffDl" value="'+esc(L.staff)+'"><datalist id="staffDl">'+staffList().map(function(s){return '<option value="'+esc(s)+'">';}).join('')+'</datalist>'+
+    '<label for="d_staff">担当</label>'+staffSel('d_staff',L.staff||'')+
     '<label for="d_contact">先方担当者</label>'+inp('d_contact',L.contact)+
     '<label for="d_tel">電話・メール</label>'+inp('d_tel',L.tel)+
     '<label for="d_people">想定人数</label>'+inp('d_people',L.people,'number')+
@@ -835,7 +839,7 @@ function renderAi(){
   '<textarea class="ai-text" id="ai_text" placeholder="例：Excelの表をそのままコピー、テレアポのリスト、名刺の文字、問い合わせメールの本文など">'+esc(aiText)+'</textarea>'+
   '<div class="hint">一度に40,000文字まで。会社名・住所・電話・業種などが書いてあれば、列の並びや書き方はそろっていなくてかまいません。</div>'+
   '<div class="sec-title">2. まとめて入れる値</div><div class="form">'+
-    '<label for="ai_staff">担当</label><input type="text" id="ai_staff" list="aiStaffDl" value="'+esc(aiCommon.staff)+'"><datalist id="aiStaffDl">'+staffList().map(function(s){return '<option value="'+esc(s)+'">';}).join('')+'</datalist>'+
+    '<label for="ai_staff">担当</label>'+staffSel('ai_staff',aiCommon.staff||'')+
     '<label for="ai_source">獲得経路</label><select id="ai_source">'+opts(SOURCES,aiCommon.source)+'</select>'+
     '<label for="ai_rank">ランク</label><select id="ai_rank">'+opts(['A','B','C'],aiCommon.rank)+'</select>'+
     '<label for="ai_stage">ステータス</label><select id="ai_stage">'+opts(STAGES,aiCommon.stage)+'</select>'+
@@ -928,6 +932,7 @@ var PROFILE_ROWS=[
   {k:'offices',t:'支援業務を行う事務所',law:'変更したら14日以内に届出',todoke:true,cols:[{k:'name',l:'事務所名'},{k:'addr',l:'所在地'},{k:'tel',l:'電話'}]},
   {k:'officers',t:'役員',law:'概要書：役員の氏名・役職・住所',cols:[{k:'name',l:'氏名'},{k:'title',l:'役職'},{k:'addr',l:'住所'}]},
   {k:'staff',t:'支援責任者・支援担当者',law:'帳簿：支援担当者の氏名・役職',cols:[{k:'kind',l:'区分',sel:['支援責任者','支援担当者']},{k:'name',l:'氏名'},{k:'name_en',l:'氏名（ローマ字）'},{k:'title',l:'役職'},{k:'office',l:'所属事務所'},{k:'appointed',l:'選任日',type:'date'}]},
+  {k:'employees',t:'支援担当者にならない従業員',law:'パート・事務員など。担当者の選択肢に出ます（届出・帳簿には載りません）',cols:[{k:'name',l:'氏名'},{k:'title',l:'役職・担当業務'},{k:'office',l:'所属事務所'},{k:'emp',l:'雇用形態',sel:['常勤','パート・アルバイト','派遣','その他']}]},
   {k:'langs',t:'対応可能言語・通訳者',law:'変更したら14日以内に届出',todoke:true,cols:[{k:'lang',l:'言語'},{k:'name',l:'通訳者の氏名'},{k:'emp',l:'常勤・非常勤・委託',sel:['常勤','非常勤','委託']}]}
 ];
 var mpDraft=null, mpMembers=[], mpMsg='', mpShown=false;
@@ -1182,11 +1187,12 @@ function jobBySrc(s){s=Number(s);for(var i=0;i<D.jobs.length;i++)if(Number(D.job
 function splitNames(s){if(Array.isArray(s))return s.filter(Boolean);return String(s||'').split(/[、,，\n]+/).map(function(x){return x.trim();}).filter(Boolean);}
 function uniq(a){var o={},r=[];a.forEach(function(x){if(x&&!o[x]){o[x]=1;r.push(x);}});return r;}
 function staffNames(){
-  var s=D.members.map(memberName).filter(function(n){return n.indexOf('ユーザー')!==0;});
-  D.co.forEach(function(c){s=s.concat(splitNames(c.main_staff),splitNames(c.sub_staff),splitNames(c.team_staff));});
-  D.cands.forEach(function(c){if(c.staff)s.push(c.staff);});
-  return uniq(s).sort(function(a,b){return a.localeCompare(b,'ja');});
+  /* 担当者の選択肢：マイページの「支援責任者・支援担当者」と「支援担当者にならない従業員」だけ */
+  var pf=(R.org()||{}).profile||{},st=(pf.staff||[]).slice(),ord={'支援責任者':0,'支援担当者':1};
+  st.sort(function(a,b){return (ord[a.kind]!=null?ord[a.kind]:2)-(ord[b.kind]!=null?ord[b.kind]:2);});
+  return uniq(st.map(function(x){return String(x.name||'').trim();}).concat((pf.employees||[]).map(function(x){return String(x.name||'').trim();})));
 }
+var NO_STAFF_HINT='<div class="hint">担当者はマイページの「支援責任者・支援担当者」「支援担当者にならない従業員」に登録した人から選びます。</div>';
 function industryList(){var s=BASE_INDUSTRIES.concat(D.ind.map(function(x){return x.name;}));D.co.forEach(function(c){(c.industries||[]).forEach(function(i){s.push(i);});});return uniq(s);}
 function workplaceList(){var s=[];D.co.forEach(function(c){if(c.workplace_name)s.push(c.name+' - '+c.workplace_name);(c.workplaces_extra||[]).forEach(function(w){if(w.name)s.push(c.name+' - '+w.name);});});return uniq(s);}
 function folderKey(c){var f=String(c.folder_no||'').trim();if(!f)return [3,0,0,'',c.name||''];var m=f.match(/^(\d+)(.*)$/);if(!m)return [2,0,0,f,c.name||''];return [1,Number(m[1]),m[1].length+(m[2]?1000:0),m[2],c.name||''];}
@@ -1243,7 +1249,7 @@ function rowsHtml(k,dr){
   rows.forEach(function(r,i){
     h+='<tr>'+def.map(function(c){var v=r[c[0]]==null?'':r[c[0]],t=c[2]||'text';
       if(t==='select')return '<td><select data-ri="'+i+'" data-rc="'+c[0]+'">'+optHtml(c[3],v,'')+'</select></td>';
-      if(t==='staff')return '<td><input list="xdlStaff" data-ri="'+i+'" data-rc="'+c[0]+'" value="'+esc(v)+'"></td>';
+      if(t==='staff')return '<td><select data-ri="'+i+'" data-rc="'+c[0]+'">'+optHtml(sn,v,'')+'</select></td>';
       return '<td><input type="'+(t==='number'?'number':t==='date'?'date':'text')+'" data-ri="'+i+'" data-rc="'+c[0]+'" value="'+esc(v)+'"></td>';}).join('')+
       '<td><button type="button" class="btn btn-sm btn-danger" data-rdel="'+k+'" data-ri="'+i+'">削除</button></td></tr>';
   });
@@ -1267,11 +1273,12 @@ function fld(f,dr){
   if(t==='textarea'){h='<textarea data-k="'+k+'">'+esc(v||'')+'</textarea>';wide=true;}
   else if(t==='date'||t==='number'||t==='month'||t==='time'){h='<input type="'+t+'" data-k="'+k+'" value="'+esc(v==null?'':String(v).slice(0,t==='date'?10:99))+'">';}
   else if(t==='checkbox'){return '<div class="xf wide"><label class="chk"><input type="checkbox" data-k="'+k+'"'+(v?' checked':'')+'> '+esc(lab)+'</label></div>';}
-  else if(t==='select'&&(f[5]==='@staff'||f[5]==='@workplaces')){var id='xdl_'+k+'_'+Math.random().toString(36).slice(2,6);h='<input type="text" list="'+id+'" data-k="'+k+'" value="'+esc(v||'')+'"><datalist id="'+id+'">'+o.map(function(n){return '<option value="'+esc(n)+'">';}).join('')+'</datalist>';}
+  else if(t==='select'&&f[5]==='@staff'){h='<select data-k="'+k+'">'+optHtml(o,v,'（未選択）')+'</select>'+(o.length?'':NO_STAFF_HINT);}
+  else if(t==='select'&&f[5]==='@workplaces'){var id='xdl_'+k+'_'+Math.random().toString(36).slice(2,6);h='<input type="text" list="'+id+'" data-k="'+k+'" value="'+esc(v||'')+'"><datalist id="'+id+'">'+o.map(function(n){return '<option value="'+esc(n)+'">';}).join('')+'</datalist>';}
   else if(t==='select'){h='<select data-k="'+k+'">'+optHtml(o,v,'（未選択）')+'</select>';}
   else if(t==='multiselect'){var arr=msArr(v),all=uniq(o.concat(arr));wide=true;
     h='<div class="ms" data-k="'+k+'" data-ms="1">'+all.map(function(x){return '<label class="chk"><input type="checkbox" value="'+esc(x)+'"'+(arr.indexOf(x)>=0?' checked':'')+'> '+esc(x)+'</label>';}).join('')+
-      (f[5]==='@staff'||f[5]==='@industries'?'<span class="msadd"><input type="text" placeholder="一覧にない名前を追加" data-msadd="'+k+'"><button type="button" class="btn btn-sm" data-msaddbtn="'+k+'">追加</button></span>':'')+'</div>';}
+      (f[5]==='@staff'&&!o.length?NO_STAFF_HINT:'')+(f[5]==='@industries'?'<span class="msadd"><input type="text" placeholder="一覧にない名前を追加" data-msadd="'+k+'"><button type="button" class="btn btn-sm" data-msaddbtn="'+k+'">追加</button></span>':'')+'</div>';}
   else if(t==='rows'){return '<div class="xf wide"><label>'+esc(lab)+'</label>'+rowsHtml(k,dr)+'</div>';}
   else if(t==='lic'){return '<div class="xf wide"><label>'+esc(lab)+'</label>'+licHtml(dr)+'</div>';}
   else{h='<input type="text" data-k="'+k+'" value="'+esc(v==null?'':v)+'">';}
@@ -1726,7 +1733,7 @@ function openMeeting(id,preset){
         '<div class="xf"><label>所属機関</label><select data-m="company_id">'+optHtml(D.co.slice().sort(byFolder).map(function(c){return [c.id,coLabel(c)];}),d.company_id,'（未選択）')+'</select></div>'+
         '<div class="xf"><label>日付</label><input type="date" data-m="meeting_date" value="'+esc(d.meeting_date||'')+'"></div>'+
         (k==='定期面談'?'<div class="xf"><label>年度</label><input type="number" data-m="fiscal_year" value="'+esc(d.fiscal_year||fy.y||'')+'"></div><div class="xf"><label>期間</label><select data-m="quarter">'+optHtml(QUARTERS,d.quarter||fy.q,'')+'</select></div><div class="xf"><label>実施方法</label><select data-m="event_method">'+optHtml(METHODS,d.event_method||'')+'</select></div><div class="xf"><label>企業側の対応者</label><input type="text" data-m="contact_name" value="'+esc(d.contact_name||'')+'"></div>':'')+
-        '<div class="xf"><label>対応担当</label><input type="text" list="xdlStaff2" data-m="staff_name" value="'+esc(d.staff_name||'')+'"><datalist id="xdlStaff2">'+staffNames().map(function(n){return '<option value="'+esc(n)+'">';}).join('')+'</datalist></div>'+
+        '<div class="xf"><label>対応担当</label><select data-m="staff_name">'+optHtml(staffNames(),d.staff_name||'','（未選択）')+'</select>'+(staffNames().length?'':NO_STAFF_HINT)+'</div>'+
         '<div class="xf"><label>人材の状況</label><select data-m="worker_status">'+optHtml(MEET_ST,d.worker_status||'')+'</select></div>'+
         '<div class="xf wide"><label>人材'+(id?'':'（1人ずつ記録します）')+'</label><select data-m="worker">'+optHtml(ws.map(function(w){return [w.id,(w.management_no?'['+w.management_no+'] ':'')+w.name];}),(d.worker_ids||[])[0]||'','（選択）')+'</select>'+(co?'':'<div class="hint">先に所属機関を選ぶと、その企業の人材が出ます</div>')+'</div>'+
         '<div class="xf wide"><label>相談内容</label><textarea data-m="memo" rows="6">'+esc(d.memo||'')+'</textarea></div>'+
@@ -1842,7 +1849,7 @@ function gcalUrl(s){
 }
 function openSched(id,preset){
   var row=id?byId(D.sc,id):null;if(id&&!row)return;preset=preset||{};
-  var d=row?JSON.parse(JSON.stringify(row)):{event_type:preset.event_type||'',status:'planned',all_day:true,scheduled_at:preset.date||today(),staff_names:[myName()],company_id:preset.company_id||null,worker_id:preset.worker_id||null};
+  var d=row?JSON.parse(JSON.stringify(row)):{event_type:preset.event_type||'',status:'planned',all_day:true,scheduled_at:preset.date||today(),staff_names:staffNames().indexOf(myName())>=0?[myName()]:[],company_id:preset.company_id||null,worker_id:preset.worker_id||null};
   d.wids=row?[row.worker_id]:(preset.worker_id?[preset.worker_id]:[]);
   if(!d.company_id&&d.worker_id){var w0=byId(D.wk,d.worker_id);if(w0)d.company_id=w0.company_id;}
   d.monthOnly=!!(row&&!row.scheduled_at&&row.plan_ym);d._cq='';d._wq='';
@@ -1866,7 +1873,7 @@ function openSched(id,preset){
        (isNew&&d.event_type==='placement'?'<div class="xf"><label class="chk"><input type="checkbox" data-s="withOri"'+(d.withOri?' checked':'')+'> 生活オリエンテーションも同じ日に実施</label></div>':'')+
        recFields(d)+reportFields(d)+
        (d.event_type==='other_support'?'<div class="xf wide"><label>対応内容</label><input type="text" data-s="other_label" value="'+esc(d.other_label||'')+'"></div>':'')+
-       '<div class="xf wide"><label>対応担当者名</label><div class="ms">'+sn.map(function(n){return '<label class="chk"><input type="checkbox" data-staff="'+esc(n)+'"'+((d.staff_names||[]).indexOf(n)>=0?' checked':'')+'> '+esc(n)+'</label>';}).join('')+'<span class="msadd"><input type="text" id="scStaffAdd" placeholder="一覧にない名前"><button type="button" class="btn btn-sm" data-sx="addstaff">追加</button></span></div></div>'+
+       '<div class="xf wide"><label>対応担当者名</label><div class="ms">'+sn.map(function(n){return '<label class="chk"><input type="checkbox" data-staff="'+esc(n)+'"'+((d.staff_names||[]).indexOf(n)>=0?' checked':'')+'> '+esc(n)+'</label>';}).join('')+'</div>'+(staffNames().length?'':NO_STAFF_HINT)+'</div>'+
        (per?'<div class="xf wide"><label>面談記録の相談内容</label><textarea data-s="memo" rows="5">'+esc(d.memo||MEMO_TPL)+'</textarea></div><div class="xf wide"><label>面談記録の対応結果</label><textarea data-s="result" rows="3">'+esc(d.result||'')+'</textarea><div class="hint">対応結果は面談日から14日以内に記入してください。3営業日を過ぎて未記入だと「記入待ち」になります。</div></div>'
            :'<div class="xf wide"><label>メモ</label><textarea data-s="notes" rows="3">'+esc(d.notes||'')+'</textarea></div>')+
        '</div>';},

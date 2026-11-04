@@ -1126,3 +1126,7 @@ alter table public.companies add column if not exists support_court text;
 alter table public.workers add column if not exists support_contract_signed_date date;
 alter table public.workers add column if not exists support_contract_pdf_url text;
 -- 5-9・5-8・5-5・5-6 の署名済みPDFは support_schedules.record（signed_url / signed_date、r55・r56 の中）に入る
+
+-- ===== 2026/11/04 アカウント設定（ユーザーごとの表示名・担当者との紐づけ） =====
+alter table public.members add column if not exists staff_name text;
+-- 書き込みは関数 update_my_member（本人）／ admin_update_member（管理者・運営）だけ。定義は Supabase のマイグレーション member_account_settings_20261104 を参照

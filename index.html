@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261104.14 -->
+<!-- RSO_VERSION ver.20261105.1 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -329,6 +329,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
   <button class="nav-item" id="navAi">AIで一括登録</button>
   <div class="sb-group">登録支援機関</div>
   <button class="nav-item" id="nav-mypage" data-v="mypage">マイページ</button>
+  <button class="nav-item" id="nav-audit" data-v="audit" hidden>操作の記録</button>
   <button class="nav-item" id="nav-orgs" data-v="orgs" hidden>登録支援機関の管理</button>
   <div class="sb-group">アカウント</div>
   <button class="nav-item" id="nav-account" data-v="account">アカウント設定</button>
@@ -341,7 +342,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261104.14</div>
+      <div class="ver">ver.20261105.1</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -409,6 +410,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
   <!-- 運営：登録支援機関の管理 -->
   <section id="v-orgs" hidden><div id="orgsBody"></div></section>
   <section id="v-account" hidden><div id="acBody"></div></section>
+  <section id="v-audit" hidden></section>
   <section id="v-companies" hidden></section>
   <section id="v-workers" hidden></section>
   <section id="v-sched" hidden></section>
@@ -557,8 +559,8 @@ function nextCell(l){
 }
 
 /* ---------- 画面切替 ---------- */
-var TITLES={account:['アカウント設定','自分の表示名・マイページの担当者との紐づけ・パスワード'],kpi:['KPI','所属機関への営業の行動量と成果を、月の目標と比べて見ます'],leads:['見込み客','求人・支援委託をもらう前の企業と、次の一手を管理します'],mypage:['マイページ','登録支援機関の基本情報。法定の帳簿（支援実施体制）と登録支援機関概要書の項目をまとめて管理します'],orgs:['登録支援機関の管理','運営用：配布する登録支援機関と、その最初の管理者を作ります'],hearing:['ヒアリング項目','所属機関との初回商談で聞く項目と、その理由'],companies:['所属機関','支援を受託している所属機関（受入れ企業）の基本情報・契約・面談記録'],workers:['外国人材','支援している特定技能外国人の在留・申請・支援の状況'],sched:['支援スケジュール','事前ガイダンスから定期面談まで、支援の予定と実施を管理します'],ledger:['監査帳簿','入管の監査で求められる帳簿を1つずつ選んで印刷・PDF保存します（運用要領 第9章）'],jobs:['求人管理','所属機関から受けた求人と、求人票・求人管理簿'],cands:['候補者管理','紹介する候補者（求職者）と、履歴書・求職管理簿'],tchat:['社内チャット','登録支援機関の中でのやり取り'],jchat:['求人チャット','求人・候補者ごとのやり取り']};
-var ALLV=['kpi','leads','hearing','mypage','orgs','account','companies','workers','sched','ledger','jobs','cands','tchat','jchat'];
+var TITLES={audit:['操作の記録','だれが・いつ・何を追加／変更／削除したか（管理者だけ）'],account:['アカウント設定','自分の表示名・マイページの担当者との紐づけ・パスワード'],kpi:['KPI','所属機関への営業の行動量と成果を、月の目標と比べて見ます'],leads:['見込み客','求人・支援委託をもらう前の企業と、次の一手を管理します'],mypage:['マイページ','登録支援機関の基本情報。法定の帳簿（支援実施体制）と登録支援機関概要書の項目をまとめて管理します'],orgs:['登録支援機関の管理','運営用：配布する登録支援機関と、その最初の管理者を作ります'],hearing:['ヒアリング項目','所属機関との初回商談で聞く項目と、その理由'],companies:['所属機関','支援を受託している所属機関（受入れ企業）の基本情報・契約・面談記録'],workers:['外国人材','支援している特定技能外国人の在留・申請・支援の状況'],sched:['支援スケジュール','事前ガイダンスから定期面談まで、支援の予定と実施を管理します'],ledger:['監査帳簿','入管の監査で求められる帳簿を1つずつ選んで印刷・PDF保存します（運用要領 第9章）'],jobs:['求人管理','所属機関から受けた求人と、求人票・求人管理簿'],cands:['候補者管理','紹介する候補者（求職者）と、履歴書・求職管理簿'],tchat:['社内チャット','登録支援機関の中でのやり取り'],jchat:['求人チャット','求人・候補者ごとのやり取り']};
+var ALLV=['kpi','leads','hearing','mypage','orgs','account','audit','companies','workers','sched','ledger','jobs','cands','tchat','jchat'];
 function setView(v){
   view=v;
   if(v==='orgs'&&!(me&&me.role==='operator'))v='kpi'; view=v;
@@ -1148,7 +1150,7 @@ function renderHearing(){
 }
 
 /* ---------- 描画 ---------- */
-var XVIEWS=['companies','workers','sched','ledger','jobs','cands','tchat','jchat'];
+var XVIEWS=['audit','companies','workers','sched','ledger','jobs','cands','tchat','jchat'];
 function isXView(v){return XVIEWS.indexOf(v)>=0;}
 function render(force){
   if(isXView(view)){if(window.RSOX&&window.RSO_READY)window.RSOX.render(view);return;}
@@ -1181,6 +1183,7 @@ async function startApp(ses){
     myOrg=must(await db.from('orgs').select('*').eq('id',me.org_id).single());
     $('sbUser').textContent=(myOrg.name||'')+'　'+(ses.user.email||'')+'（'+ROLE_NAME[me.role]+'）';
     $('nav-orgs').hidden=me.role!=='operator';
+    $('nav-audit').hidden=!(me.role==='admin'||me.role==='operator');
   }catch(e){var n1=$('dbNotice');n1.hidden=false;n1.textContent='所属の読み込みに失敗しました：'+(e&&e.message||'');return;}
   try{await loadAll();}catch(e){var n=$('dbNotice');n.hidden=false;n.textContent='データを読み込めませんでした：'+(e&&e.message||'');}
   window.RSO_READY=true;if(window.RSOX)window.RSOX.start().catch(function(){});
@@ -2977,12 +2980,93 @@ function formButtons(w){
     '<div class="hint">「URLを入れる」を押すと入力欄が開きます。5-9・5-8・5-5・5-6はその予定（支援スケジュール）の画面、5-10は「基本情報」タブの欄です。2回目以降の面談などは「支援スケジュール」タブから各回を開いて入れてください。</div></div>';
 }
 
+/* ---------- 操作の記録（管理者・運営） ----------
+   audit_log はDBのトリガーだけが書く。ここでは自分の機関の分を読むだけ（変更・削除はできない） */
+var AUDIT_T={companies:'所属機関',workers:'外国人材',support_schedules:'支援スケジュール',company_meetings:'面談記録',job_progress:'求人',candidates:'候補者',
+  candidate_job_progress:'候補者の紐づけ',leads:'見込み客',activities:'営業の活動',kpi_targets:'KPI目標',orgs:'マイページ（機関情報）',members:'ユーザー',
+  team_chat_messages:'社内チャット',team_chat_rooms:'社内チャットのルーム',team_chat_members:'社内チャットの参加者',team_chat_reactions:'社内チャットのスタンプ',team_chat_message_edits:'社内チャットの編集履歴',
+  chat_messages:'求人チャット',chat_rooms:'求人チャットのルーム',chat_reactions:'求人チャットのスタンプ',chat_pins:'求人チャットのピン',
+  company_change_log:'所属機関の変更履歴',industry_options:'業種の選択肢',candidate_form_links:'候補者フォーム',job_sheet_links:'求人票リンク'};
+var AUDIT_A={INSERT:['追加','#2f855a','#f0fff4'],UPDATE:['変更','#2b6cb0','#ebf8ff'],DELETE:['削除','#c53030','#fff5f5']};
+var AUDIT_F={support_schedules:{event_type:'種別',event_method:'実施方法',status:'状態',scheduled_at:'日付',completed_at:'実施日',plan_ym:'予定月',start_time:'開始',end_time:'終了',staff_names:'担当者',notes:'メモ',place:'実施場所',interpreter:'通訳者',record:'帳簿の記録',worker_id:'人材',company_id:'所属機関',other_label:'対応内容',all_day:'一日中'},
+  company_meetings:{meeting_date:'日付',kind:'項目',memo:'相談内容',result_memo:'対応結果',staff_name:'担当',event_method:'実施方法',worker_ids:'人材',worker_status:'人材の状況',quarter:'期間',fiscal_year:'年度'},
+  members:{display_name:'表示名',role:'権限',staff_name:'担当者との紐づけ',active:'利用中',disabled_at:'停止日',disabled_by:'停止した人'},
+  orgs:{name:'名称',profile:'機関情報'},
+  leads:{name:'会社名',stage:'段階',rank:'ランク',staff:'担当',next_date:'次の予定日',next_kind:'次の一手',next_note:'次の一手のメモ',memo:'メモ',people:'人数',fee:'委託費',plan:'計画'},
+  activities:{date:'日付',kind:'種類',result:'結果',note:'メモ',staff:'担当'}};
+var AUDIT_KF={companies:'companies',workers:'workers',job_progress:'jobs',candidates:'candidates'};
+var VA={from:'',to:'',t:'',a:'',q:'',rows:[],more:false,err:'',chk:null,chkMsg:''};
+function auditField(t,k){var m=AUDIT_F[t];if(m&&m[k])return m[k];var kf=AUDIT_KF[t]&&KF[AUDIT_KF[t]];if(kf){for(var i=0;i<kf.length;i++)if(kf[i][0]===k)return kf[i][1];}
+  var pf={reg_no:'登録番号',corp_name:'名称',staff:'支援責任者・支援担当者',employees:'支援担当者にならない従業員',officers:'役員',offices:'事務所',langs:'対応言語'};return pf[k]||k;}
+function auditVal(t,k,v){
+  if(v==null||v==='')return '（空）';
+  if(t==='support_schedules'&&k==='event_type'&&EVT_BY[v])return EVT_BY[v].l;
+  if((k==='worker_id')&&byId(D.wk,v))return byId(D.wk,v).name;
+  if((k==='company_id')&&coOf(v))return coOf(v).name;
+  if(k==='role')return {member:'一般',admin:'管理者',operator:'運営'}[v]||v;
+  if(typeof v==='boolean')return v?'はい':'いいえ';
+  var s=typeof v==='object'?JSON.stringify(v):String(v);return s.length>80?s.slice(0,80)+'…':s;}
+function auditLabel(r){var c=r.changes||{},t=r.table_name;
+  if(t==='support_schedules'){var w=byId(D.wk,(c.worker_id&&c.worker_id.new)||c.worker_id)||{},e=EVT_BY[(c.event_type&&c.event_type.new)||c.event_type];
+    if(r.action!=='UPDATE')return [(e||{}).l,w.name,r.label].filter(Boolean).join('　');var s=byId(D.sc,r.row_id);if(s)return [(EVT_BY[s.event_type]||{}).l,(byId(D.wk,s.worker_id)||{}).name,schedDate(s)].filter(Boolean).join('　');}
+  if(t==='workers'||t==='companies'||t==='candidates'){var x=t==='workers'?byId(D.wk,r.row_id):t==='companies'?coOf(r.row_id):byId(D.cands,r.row_id);if(x&&x.name)return x.name;}
+  return r.label||'';}
+function auditBody(r){var c=r.changes||{},t=r.table_name;
+  if(r.action==='UPDATE'){var ks=Object.keys(c);return ks.slice(0,8).map(function(k){var o=c[k]||{};
+      if(t==='orgs'&&k==='profile'&&o.old&&o.new&&typeof o.old==='object'){var sub=[];Object.keys(Object.assign({},o.old,o.new)).forEach(function(kk){if(JSON.stringify(o.old[kk])!==JSON.stringify(o.new[kk]))sub.push(esc(auditField(t,kk)));});return '<div>機関情報：'+sub.join('、')+' を変更</div>';}
+      return '<div><b>'+esc(auditField(t,k))+'</b>：<span class="sub">'+esc(auditVal(t,k,o.old))+'</span> → '+esc(auditVal(t,k,o.new))+'</div>';}).join('')+(ks.length>8?'<div class="sub">ほか'+(ks.length-8)+'項目</div>':'');}
+  var keys=Object.keys(c).filter(function(k){return ['id','org_id','created_at','updated_at','updated_by','created_by'].indexOf(k)<0&&c[k]!=null&&c[k]!==''&&!(Array.isArray(c[k])&&!c[k].length)&&!(typeof c[k]==='object'&&!Array.isArray(c[k])&&!Object.keys(c[k]).length);});
+  return '<details><summary class="sub" style="cursor:pointer">'+(r.action==='DELETE'?'消した内容':'入れた内容')+'（'+keys.length+'項目）</summary>'+keys.map(function(k){return '<div><b>'+esc(auditField(t,k))+'</b>：'+esc(auditVal(t,k,c[k]))+'</div>';}).join('')+'</details>';}
+async function auditLoad(append){
+  var from=append?VA.rows.length:0;
+  var q=db().from('audit_log').select('*').order('at',{ascending:false}).range(from,from+199);
+  if(VA.from)q=q.gte('at',VA.from+'T00:00:00+09:00');if(VA.to)q=q.lte('at',VA.to+'T23:59:59+09:00');
+  if(VA.t)q=q.eq('table_name',VA.t);if(VA.a)q=q.eq('action',VA.a);
+  if(VA.q){var w=VA.q.replace(/[%,()]/g,' ');q=q.or('label.ilike.%'+w+'%,user_name.ilike.%'+w+'%');}
+  var r=await q;
+  if(r.error){VA.err=/audit_log/.test(r.error.message||'')?'操作の記録のDBがまだ準備されていません（sql/20261105_security_audit.sql の実行が必要です）':'読み込めませんでした：'+(r.error.message||'');VA.rows=[];VA.more=false;return;}
+  VA.err='';VA.rows=append?VA.rows.concat(r.data||[]):(r.data||[]);VA.more=(r.data||[]).length===200;
+}
+function auditCheckHtml(){
+  if(me().role!=='operator')return '';
+  var c=VA.chk;
+  return '<div class="xsec" style="margin-bottom:14px"><div class="xsec-t">機関ごとの区切りの点検（運営だけ）</div>'+
+    '<div class="sub" style="margin-bottom:8px">DBの全テーブルについて、ほかの機関のデータが見えたり書き換えられたりする設定がないかを調べます。テーブルを足したあとは、必ず実行してください。新しく作ったテーブルは自動で「だれも触れない」状態から始まります。</div>'+
+    '<div class="toolbar"><button class="btn btn-primary btn-sm" id="auChk">点検を実行</button><button class="btn btn-sm" id="auAttach">操作の記録を付け直す</button><span class="sub">'+esc(VA.chkMsg)+'</span></div>'+
+    (c?(c.length?'<div class="tablewrap" style="margin-top:8px"><table><thead><tr><th>テーブル</th><th>重さ</th><th>内容</th></tr></thead><tbody>'+c.map(function(x){return '<tr><td>'+esc(x.table_name)+'<div class="sub">'+esc(AUDIT_T[x.table_name]||'')+'</div></td><td>'+chip(x.level,x.level==='危険'?'#c53030':'#b7791f',x.level==='危険'?'#fff5f5':'#fffbeb')+'</td><td>'+esc(x.problem)+'</td></tr>';}).join('')+'</tbody></table></div>'
+      :'<div style="margin-top:8px;color:#2f855a;font-weight:700">問題は見つかりませんでした（全テーブルが機関ごとに区切られています）</div>'):'')+'</div>';
+}
+async function renderAudit(){
+  var el=$('v-audit');var m=me();
+  if(m.role!=='admin'&&m.role!=='operator'){el.innerHTML='<div class="empty">操作の記録は管理者だけが見られます。</div>';return;}
+  if(!VA.from){VA.from=addDays(today(),-30);VA.to=today();}
+  if(!VA._loaded){VA._loaded=true;await auditLoad(false);}
+  var types=Object.keys(AUDIT_T).map(function(k){return [k,AUDIT_T[k]];});
+  el.innerHTML=auditCheckHtml()+
+   '<div class="filters" style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-bottom:10px">'+
+    '<label class="sub">期間 <input type="date" id="auFrom" value="'+esc(VA.from)+'"></label><label class="sub">〜 <input type="date" id="auTo" value="'+esc(VA.to)+'"></label>'+
+    '<select id="auT">'+optHtml(types,VA.t,'すべての種類')+'</select><select id="auA">'+optHtml([['INSERT','追加'],['UPDATE','変更'],['DELETE','削除']],VA.a,'すべての操作')+'</select>'+
+    '<input type="text" id="auQ" placeholder="対象の名前・ユーザー名で検索" value="'+esc(VA.q)+'"><button class="btn btn-sm" id="auGo">表示</button></div>'+
+   (VA.err?'<div class="msg">'+esc(VA.err)+'</div>':'')+
+   (VA.rows.length?'<div class="tablewrap"><table><thead><tr><th>日時</th><th>ユーザー</th><th>操作</th><th>種類</th><th>対象</th><th>内容</th></tr></thead><tbody>'+VA.rows.map(function(r){var a=AUDIT_A[r.action]||[r.action];
+      return '<tr><td class="num" style="white-space:nowrap">'+esc(dt(r.at))+'<div class="sub">'+esc(String(r.at).slice(0,4))+'</div></td><td>'+esc(r.user_name||'—')+'</td><td>'+chip(a[0],a[1],a[2])+'</td><td style="white-space:nowrap">'+esc(AUDIT_T[r.table_name]||r.table_name)+'</td><td>'+esc(auditLabel(r))+'</td><td style="font-size:12px;max-width:520px">'+auditBody(r)+'</td></tr>';}).join('')+'</tbody></table></div>'
+     :(VA.err?'':'<div class="empty">この条件の記録はありません。</div>'))+
+   (VA.more?'<div style="text-align:center;margin-top:10px"><button class="btn" id="auMore">さらに表示</button></div>':'')+
+   '<div class="hint" style="margin-top:8px">追加・変更・削除はDBが自動で記録します。記録はだれも変更・削除できません（管理者・運営が自分の機関の分を見るだけ）。チャットの既読は記録しません。</div>';
+  var go=async function(){VA.from=$('auFrom').value;VA.to=$('auTo').value;VA.t=$('auT').value;VA.a=$('auA').value;VA.q=$('auQ').value.trim();await auditLoad(false);renderAudit();};
+  $('auGo').onclick=go;$('auQ').onkeydown=function(e){if(e.key==='Enter')go();};['auFrom','auTo','auT','auA'].forEach(function(i){$(i).onchange=go;});
+  if($('auMore'))$('auMore').onclick=async function(){this.disabled=true;await auditLoad(true);renderAudit();};
+  if($('auChk'))$('auChk').onclick=async function(){this.disabled=true;var r=await db().rpc('rls_audit');if(r.error){VA.chkMsg='実行できませんでした：'+r.error.message;VA.chk=null;}else{VA.chk=r.data||[];VA.chkMsg='点検日時 '+dt(new Date().toISOString());}renderAudit();};
+  if($('auAttach'))$('auAttach').onclick=async function(){this.disabled=true;var r=await db().rpc('rso_attach_audit');VA.chkMsg=r.error?'実行できませんでした：'+r.error.message:r.data+'個のテーブルに操作の記録を付けました';renderAudit();};
+}
+
 function tool(label,fn,primary){return {label:label,fn:fn,primary:primary};}
 var VIEWS={
   companies:{render:renderCompanies,tools:[tool('＋ 所属機関を登録',function(){openCompany(null);},true)]},
   workers:{render:renderWorkers,tools:[tool('＋ 外国人材を登録',function(){openWorker(null);},true)]},
   sched:{render:renderSched,tools:[tool('＋ 予定を登録',function(){openSched(null,{});},true)]},
   ledger:{render:renderLedger,tools:[]},
+  audit:{render:renderAudit,tools:[tool('再読み込み',function(){VA._loaded=false;renderAudit();})]},
   jobs:{render:renderJobs,tools:[tool('＋ 新規求人を登録',function(){openJob(null);},true)]},
   cands:{render:renderCands,tools:[tool('＋ 候補者を登録',function(){openCand(null);},true)]},
   tchat:{render:renderTchat,chat:true,tools:[]},

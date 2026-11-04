@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261104.9 -->
+<!-- RSO_VERSION ver.20261104.10 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -340,7 +340,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261104.9</div>
+      <div class="ver">ver.20261104.10</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1625,7 +1625,7 @@ function workerBasicHtml(d){
 function openWorker(id,focusK,preset){
   var row=id?byId(D.wk,id):Object.assign({status:'配属前',kmt_support:'自社支援',apply_status:'申請予定なし'},preset||{});if(id&&!row){toast('見つかりませんでした');return;}
   var dr=draftFrom('workers',row);if(!dr.jp_addresses.length&&dr.jp_address)dr.jp_addresses=[{address:dr.jp_address,from:'',to:''}];
-  openModal({mod:'workers',dr:dr,orig:JSON.parse(JSON.stringify(row)),isNew:!id,tab:'basic',
+  openModal({mod:'workers',dr:dr,orig:JSON.parse(JSON.stringify(row)),isNew:!id,tab:focusK==='@sched'?'sched':'basic',
     title:function(){return (M.dr.name||'新しい外国人材')+(M.dr.management_no?'（'+M.dr.management_no+'）':'');},
     subtitle:function(){var c=coOf(M.dr.company_id);return (c?esc(c.name):'所属機関 未設定')+(M.orig.updated_at?'　最終更新 '+dt(M.orig.updated_at)+(M.orig.updated_by?'（'+esc(M.orig.updated_by)+'）':''):'');},
     tabs:[
@@ -2489,10 +2489,14 @@ function bookBody(k){
         en:ws.filter(function(w){return inRange(supEnd(w),a,b);}).length,
         lost:ws.filter(function(w){return inRange(supEnd(w),a,b)&&supReason(w)==='行方不明';}).length};});
     html+='<h3>7. 毎月の支援の状況</h3>'+tbl([{l:'年月',f:function(r){return r.ym.replace('-','年')+'月';}},{l:'支援対象者数',f:function(r){return r.n+'人';}},{l:'うち支援開始',f:function(r){return r.st+'人';}},{l:'うち支援終了',f:function(r){return r.en+'人';}},{l:'行方不明者数',f:function(r){return r.lost+'人';}},{l:'支援している所属機関数',f:function(r){return r.co+'社';}}],rows,'支援している人材がいません');
-    if(!pf.reg_no)warn.push('マイページに登録番号がありません');
-    if(!(pf.staff||[]).length)warn.push('マイページに支援責任者・支援担当者がありません');
-    if(!(pf.officers||[]).length)warn.push('マイページに役員がありません');
-    var noS=ws.filter(function(w){return !supStart(w);}).length;if(noS)warn.push('支援開始日（または配属日・入国日）がない人材が '+noS+'名います。毎月の人数に数えられません');
+    if(!pf.reg_no)warn.push({h:'マイページに登録番号がありません　'+lgLink('mp','登録','→ マイページで入力する')});
+    if(!(pf.staff||[]).length)warn.push({h:'マイページに支援責任者・支援担当者がありません　'+lgLink('mp','支援責任者・支援担当者','→ マイページで入力する')});
+    if(!(pf.officers||[]).length)warn.push({h:'マイページに役員がありません　'+lgLink('mp','役員','→ マイページで入力する')});
+    if(!pf.corp_no||!pf.rep_name||!pf.corp_addr)warn.push({h:'マイページの法人の基本情報（法人番号・代表者・住所）に空欄があります　'+lgLink('mp','法人の基本情報','→ マイページで入力する')});
+    if(!(pf.offices||[]).length)warn.push({h:'マイページに支援業務を行う事務所がありません　'+lgLink('mp','支援業務を行う事務所','→ マイページで入力する')});
+    if(!(pf.langs||[]).length)warn.push({h:'マイページに対応可能言語・通訳者がありません　'+lgLink('mp','対応可能言語・通訳者','→ マイページで入力する')});
+    if(!pf.support_hours||!pf.support_methods)warn.push({h:'マイページの相談の曜日・時間帯・方法に空欄があります　'+lgLink('mp','支援の実施体制','→ マイページで入力する')});
+    var noS=ws.filter(function(w){return !supStart(w);});if(noS.length)warn.push({h:'支援開始日（または配属日・入国日）がない人材（毎月の人数に数えられません）：'+lgNames(noS,'wk','support_start_date')});
     return {html:html,warn:warn,fix:'mypage'};
   }
   if(k==='b2'){
@@ -2503,9 +2507,9 @@ function bookBody(k){
       {l:'支援経費の収支・内訳',f:function(c){return c.support_cost_note||'';},pre:true,w:'14%'},{l:'支援対象者数',f:function(c){return act.filter(function(w){return w.company_id===c.id;}).length+'人';}},
       {l:'支援委託契約書（署名済み）',f:function(c){var ws=act.filter(function(w){return w.company_id===c.id;});return ws.map(function(w){return esc(w.name||'')+'：'+signedCell(w.support_contract_pdf_url,w.support_contract_signed_date);}).join('<br>');},html:true,w:'16%'}],cos,'支援している所属機関がありません');
     var miss=cos.filter(function(c){return !c.support_contract_date;}),ms=cos.filter(function(c){return !c.support_contract_scope;});
-    if(miss.length)warn.push('契約締結日が未入力：'+miss.map(function(c){return c.name;}).join('、'));
-    if(ms.length)warn.push('受託した支援業務の範囲が未入力：'+ms.map(function(c){return c.name;}).join('、'));
-    var nc5=act.filter(function(w){return !okUrl(w.support_contract_pdf_url);});if(nc5.length)warn.push('署名済みの支援委託契約書（5-10号）のURLが未登録の人材：'+nc5.map(function(w){return w.name;}).join('、'));
+    if(miss.length)warn.push({h:'契約締結日が未入力：'+lgNames(miss,'co','support_contract_date')});
+    if(ms.length)warn.push({h:'受託した支援業務の範囲が未入力：'+lgNames(ms,'co','support_contract_scope')});
+    var nc5=act.filter(function(w){return !okUrl(w.support_contract_pdf_url);});if(nc5.length)warn.push({h:'署名済みの支援委託契約書（5-10号）のURLが未登録の人材：'+lgNames(nc5,'wk','support_contract_pdf_url')});
     return {html:html,warn:warn,fix:'companies'};
   }
   if(k==='b3'){
@@ -2515,10 +2519,10 @@ function bookBody(k){
       {l:'所属機関',f:function(w){return coName(w.company_id);},w:'12%'},{l:'分野・職種',f:function(w){return [w.applicant_field,w.job_category].filter(Boolean).join('／');}},
       {l:'支援計画（1-17号）作成日',f:function(w){return lvDate(w.support_plan_date);}},{l:'支援開始日',f:function(w){return lvDate(supStart(w));}},{l:'支援終了日',f:function(w){return lvDate(supEnd(w));}},{l:'終了の理由',f:function(w){return supReason(w);}}],ws3,'支援した人材がいません');
     var np=ws3.filter(function(w){return !w.support_plan_date;}),ns=ws3.filter(function(w){return !supStart(w);}),nr=ws3.filter(function(w){return supEnd(w)&&!supReason(w);});
-    if(np.length)warn.push('支援計画の作成日が未入力：'+np.length+'名');
-    if(ns.length)warn.push('支援開始日が未入力：'+ns.map(function(w){return w.name;}).join('、'));
-    if(nr.length)warn.push('支援は終了しているが終了の理由が未入力：'+nr.map(function(w){return w.name;}).join('、'));
-    var nc=ws3.filter(function(w){return !w.residence_card;});if(nc.length)warn.push('在留カード番号が未入力：'+nc.length+'名');
+    if(np.length)warn.push({h:'支援計画の作成日が未入力：'+lgNames(np,'wk','support_plan_date')});
+    if(ns.length)warn.push({h:'支援開始日が未入力：'+lgNames(ns,'wk','support_start_date')});
+    if(nr.length)warn.push({h:'支援は終了しているが終了の理由が未入力：'+lgNames(nr,'wk','support_end_reason')});
+    var nc=ws3.filter(function(w){return !w.residence_card;});if(nc.length)warn.push({h:'在留カード番号が未入力：'+lgNames(nc,'wk','residence_card')});
     return {html:html,warn:warn,fix:'workers'};
   }
   /* ④ 支援実施状況 */
@@ -2576,7 +2580,7 @@ function bookBody(k){
   var noStaff=rows4.filter(function(r){return !staffStr(r.s);}).length;if(noStaff)warn.push('担当者が入っていない記録が '+noStaff+'件あります');
   if(['a1','a3','a4','a5','a6','a8'].indexOf(k)>=0){var nc4=rows4.filter(function(r){return !rec(r.s).content&&!r.s.notes;}).length;if(nc4)warn.push('実施内容が入っていない記録が '+nc4+'件あります');}
   if(k==='a1'||k==='a4'){var need=lvWorkers().filter(function(w){return !rows4.some(function(r){return r.w&&r.w.id===w.id;})&&!D.sc.some(function(s){return s.worker_id===w.id&&s.event_type===B.ev[0];})&&!w[B.wf[0]];});
-    var nw=need.filter(function(w){return inRange(supStart(w),f,t);});if(nw.length)warn.push('支援を始めたのに'+B.t.replace('の実施記録','')+'の記録がない人材：'+nw.map(function(w){return w.name;}).join('、'));}
+    var nw=need.filter(function(w){return inRange(supStart(w),f,t);});if(nw.length)warn.push({h:'支援を始めたのに'+esc(B.t.replace('の実施記録',''))+'の記録がない人材：'+lgNames(nw,'wk','@sched')});}
   if(k==='a1'||k==='a4'){var ns2=rows4.filter(function(r){return r.src!=='wk'?!okUrl(rec(r.s).signed_url):true;});if(ns2.length)warn.push('署名済みの確認書（'+(k==='a1'?'5-9号':'5-8号')+'）のURLが入っていない記録が '+ns2.length+'件あります');}
   if(k==='a10'){var nrv=rows4.filter(function(r){return r.s.event_method==='online'&&!okUrl(rec(r.s).rec_url);}).length;if(nrv)warn.push('オンラインで実施したのに録画のURLが入っていない定期面談が '+nrv+'件あります');
     var nmt=rows4.filter(function(r){return r.s.event_method!=='online'&&r.s.event_method!=='visit';}).length;if(nmt)warn.push('実施方法（オンライン／訪問）が入っていない定期面談が '+nmt+'件あります');}
@@ -2584,6 +2588,12 @@ function bookBody(k){
   if(k==='a10'){var nm=rows4.filter(function(r){return !(r.mt&&r.mt.result_memo);}).length;if(nm)warn.push('対応結果が未記入の面談が '+nm+'件あります');}
   return {html:html,warn:warn,fix:'sched'};
 }
+/* 警告から該当の画面へ飛ぶリンク。mp=マイページの見出し、co/wk=所属機関・人材の項目 */
+function lgLink(kind,id,label,focus){return '<a href="#" data-lgo="'+esc(kind+'|'+id+'|'+(focus||''))+'">'+esc(label)+'</a>';}
+function lgNames(list,kind,focus){return list.map(function(x){return lgLink(kind,x.id,x.name||'（名前なし）',focus);}).join('、');}
+function scrollMp(title){var n=0;(function f(){var hs=[].slice.call(document.querySelectorAll('#mpBody .kcard h3'));var h=hs.filter(function(x){return (x.textContent||'').trim().indexOf(title)===0;})[0];
+  if(!h){if(n++<40)setTimeout(f,100);return;}var card=h.closest('.kcard')||h;card.scrollIntoView({behavior:'smooth',block:'start'});card.style.transition='box-shadow .3s';card.style.boxShadow='0 0 0 3px rgba(214,158,46,.7)';setTimeout(function(){card.style.boxShadow='';},2200);
+  var i=card.querySelector('input,select,textarea');if(i)setTimeout(function(){try{i.focus({preventScroll:true});}catch(e){}},400);})();}
 function bookHead(B){var o=R.org()||{},pf=o.profile||{};
   return '<div class="lhead"><div class="ltitle">'+(B.form?'<div style="font-size:10.5px;font-weight:400">'+esc(B.form)+'</div>':'')+esc((B.no?B.no+' ':'')+B.t)+'</div><div class="lmeta"><div>登録支援機関：'+esc(pf.corp_name||o.name||'')+(pf.reg_no?'（登録番号 '+esc(pf.reg_no)+'）':'')+'</div>'+
     '<div>対象：これまでのすべての記録'+(VL.co?'　所属機関：'+esc(coName(VL.co)):'')+(VL.wk?'　対象者：'+esc((byId(D.wk,VL.wk)||{}).name||''):'')+'</div><div>作成日：'+esc(lvDate(today()))+'</div></div></div>';}
@@ -2629,11 +2639,13 @@ function renderLedger(){
       (B.k!=='b1'?'<label>支援対象者<select id="lvWk">'+optHtml(wks.map(function(w){return [w.id,(w.management_no?'['+w.management_no+'] ':'')+(w.name||'')];}),VL.wk,'すべて')+'</select></label>':'')+
       '<span style="flex:1"></span><button class="btn btn-primary" id="lvPrint">印刷・PDFで保存</button></div>'+
       (B.d?'<div class="sub" style="margin-bottom:8px">'+esc(B.d)+'</div>':'')+
-      (r.warn.length?'<div class="lwarn"><b>監査の前に確認（印刷には出ません）</b><ul>'+r.warn.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>':'')+
+      (r.warn.length?'<div class="lwarn"><b>監査の前に確認（印刷には出ません）</b><ul>'+r.warn.map(function(x){return '<li>'+(x&&x.h?x.h:esc(x))+'</li>';}).join('')+'</ul></div>':'')+
       '<div class="lprev"><div class="lbook">'+bookHead(B)+r.html+'</div></div></div></div>';
   el.querySelectorAll('[data-lb]').forEach(function(b){b.onclick=function(){VL.book=b.dataset.lb;renderLedger();};});
   $('lvCo').onchange=function(){VL.co=this.value;VL.wk='';renderLedger();};if($('lvWk'))$('lvWk').onchange=function(){VL.wk=this.value;renderLedger();};
   $('lvPrint').onclick=printBook;
+  el.querySelectorAll('[data-lgo]').forEach(function(a){a.onclick=function(e){e.preventDefault();var p=a.dataset.lgo.split('|');
+    if(p[0]==='mp'){R.setView('mypage');scrollMp(p[1]);}else if(p[0]==='co')openCompany(p[1],p[2]||null);else if(p[0]==='wk')openWorker(p[1],p[2]||null);};});
 }
 
 /* 署名済みPDF（Googleドライブ等のURL） */

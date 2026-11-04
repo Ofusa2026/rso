@@ -42,7 +42,7 @@ begin
     end if;
     select count(*) into n from pg_policies p where p.schemaname='public' and p.tablename=t.relname;
     if n=0 then
-      if t.relname not in ('audit_log') then
+      if t.relname not in ('audit_log','olink_links') then
         table_name:=t.relname; level:='注意'; problem:='ポリシーがありません（だれも使えない状態）。使うテーブルならポリシーを書いてください'; return next;
       end if;
       continue;
@@ -69,7 +69,7 @@ begin
       table_name:=t.relname; level:='注意'; problem:='org_id の列がありません。どの機関のデータか区別できません'; return next;
     end if;
     -- 操作の記録が付いていない（業務テーブル）
-    if has_org and t.relname not in ('audit_log','chat_read_at') and not exists(
+    if has_org and t.relname not in ('audit_log','chat_read_at','olink_links') and not exists(
          select 1 from pg_trigger g where g.tgrelid=t.oid and g.tgname='rso_audit' and not g.tgisinternal) then
       table_name:=t.relname; level:='注意'; problem:='操作の記録（rso_audit）が付いていません。下の「操作の記録を付け直す」を実行してください'; return next;
     end if;
@@ -143,7 +143,7 @@ begin
   for t in select c.relname from pg_class c join pg_namespace s on s.oid=c.relnamespace
            where s.nspname='public' and c.relkind='r'
              and (exists(select 1 from information_schema.columns x where x.table_schema='public' and x.table_name=c.relname and x.column_name='org_id') or c.relname='orgs')
-             and c.relname not in ('audit_log','chat_read_at') loop
+             and c.relname not in ('audit_log','chat_read_at','olink_links') loop
     execute format('drop trigger if exists rso_audit on public.%I', t.relname);
     execute format('create trigger rso_audit after insert or update or delete on public.%I for each row execute function public.rso_audit_trigger()', t.relname);
     n := n + 1;

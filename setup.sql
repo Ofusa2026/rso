@@ -1141,3 +1141,6 @@ alter table public.members add column if not exists disabled_by text;
 
 -- ===== 2026/11/05 機関ごとの区切りの点検・操作の記録 =====
 -- sql/20261105_security_audit.sql を SQL Editor で実行する（何度実行しても同じ結果）
+
+-- ===== 2026/11/05 O-Link連携 =====
+-- sql/20261105_olink_links.sql → sql/20261105_security_audit.sql の順に実行（サーバー処理は supabase/functions/olink）

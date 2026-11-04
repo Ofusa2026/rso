@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.1 -->
+<!-- RSO_VERSION ver.20261105.2 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -318,6 +318,8 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
   <button class="nav-item" id="nav-workers" data-v="workers">外国人材</button>
   <button class="nav-item" id="nav-sched" data-v="sched">支援スケジュール</button>
   <button class="nav-item" id="nav-ledger" data-v="ledger">監査帳簿</button>
+  <div class="sb-group" id="grp-ofusa" hidden>大房行政書士法人</div>
+  <button class="nav-item" id="nav-olink" data-v="olink" hidden>大房への依頼（O-Link）</button>
   <div class="sb-group">求人・人材紹介</div>
   <button class="nav-item" id="nav-jobs" data-v="jobs">求人管理</button>
   <button class="nav-item" id="nav-cands" data-v="cands">候補者管理</button>
@@ -342,7 +344,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.1</div>
+      <div class="ver">ver.20261105.2</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -411,6 +413,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
   <section id="v-orgs" hidden><div id="orgsBody"></div></section>
   <section id="v-account" hidden><div id="acBody"></div></section>
   <section id="v-audit" hidden></section>
+  <section id="v-olink" hidden></section>
   <section id="v-companies" hidden></section>
   <section id="v-workers" hidden></section>
   <section id="v-sched" hidden></section>
@@ -559,8 +562,8 @@ function nextCell(l){
 }
 
 /* ---------- 画面切替 ---------- */
-var TITLES={audit:['操作の記録','だれが・いつ・何を追加／変更／削除したか（管理者だけ）'],account:['アカウント設定','自分の表示名・マイページの担当者との紐づけ・パスワード'],kpi:['KPI','所属機関への営業の行動量と成果を、月の目標と比べて見ます'],leads:['見込み客','求人・支援委託をもらう前の企業と、次の一手を管理します'],mypage:['マイページ','登録支援機関の基本情報。法定の帳簿（支援実施体制）と登録支援機関概要書の項目をまとめて管理します'],orgs:['登録支援機関の管理','運営用：配布する登録支援機関と、その最初の管理者を作ります'],hearing:['ヒアリング項目','所属機関との初回商談で聞く項目と、その理由'],companies:['所属機関','支援を受託している所属機関（受入れ企業）の基本情報・契約・面談記録'],workers:['外国人材','支援している特定技能外国人の在留・申請・支援の状況'],sched:['支援スケジュール','事前ガイダンスから定期面談まで、支援の予定と実施を管理します'],ledger:['監査帳簿','入管の監査で求められる帳簿を1つずつ選んで印刷・PDF保存します（運用要領 第9章）'],jobs:['求人管理','所属機関から受けた求人と、求人票・求人管理簿'],cands:['候補者管理','紹介する候補者（求職者）と、履歴書・求職管理簿'],tchat:['社内チャット','登録支援機関の中でのやり取り'],jchat:['求人チャット','求人・候補者ごとのやり取り']};
-var ALLV=['kpi','leads','hearing','mypage','orgs','account','audit','companies','workers','sched','ledger','jobs','cands','tchat','jchat'];
+var TITLES={olink:['大房への依頼（O-Link）','大房行政書士法人への申請依頼・進捗・不足書類・お知らせ（O-Link）'],audit:['操作の記録','だれが・いつ・何を追加／変更／削除したか（管理者だけ）'],account:['アカウント設定','自分の表示名・マイページの担当者との紐づけ・パスワード'],kpi:['KPI','所属機関への営業の行動量と成果を、月の目標と比べて見ます'],leads:['見込み客','求人・支援委託をもらう前の企業と、次の一手を管理します'],mypage:['マイページ','登録支援機関の基本情報。法定の帳簿（支援実施体制）と登録支援機関概要書の項目をまとめて管理します'],orgs:['登録支援機関の管理','運営用：配布する登録支援機関と、その最初の管理者を作ります'],hearing:['ヒアリング項目','所属機関との初回商談で聞く項目と、その理由'],companies:['所属機関','支援を受託している所属機関（受入れ企業）の基本情報・契約・面談記録'],workers:['外国人材','支援している特定技能外国人の在留・申請・支援の状況'],sched:['支援スケジュール','事前ガイダンスから定期面談まで、支援の予定と実施を管理します'],ledger:['監査帳簿','入管の監査で求められる帳簿を1つずつ選んで印刷・PDF保存します（運用要領 第9章）'],jobs:['求人管理','所属機関から受けた求人と、求人票・求人管理簿'],cands:['候補者管理','紹介する候補者（求職者）と、履歴書・求職管理簿'],tchat:['社内チャット','登録支援機関の中でのやり取り'],jchat:['求人チャット','求人・候補者ごとのやり取り']};
+var ALLV=['kpi','leads','hearing','mypage','orgs','account','audit','olink','companies','workers','sched','ledger','jobs','cands','tchat','jchat'];
 function setView(v){
   view=v;
   if(v==='orgs'&&!(me&&me.role==='operator'))v='kpi'; view=v;
@@ -1118,20 +1121,97 @@ async function addMember(){
   toast(email+' を追加しました'); await loadMembers(); renderMypage();
 }
 
+/* ---------- 大房への依頼（O-Link をRSOの中で使う） ----------
+   O-Link（share.html）を毎回最新のまま読み込み、通信だけRSOのサーバー（olink）を通す。
+   O-Linkの鍵（URLトークン・パスワード）はサーバーの中だけにあり、この画面には来ない。 */
+var OLINK_SRC=['https://ofusa2026.github.io/org-view/share.html','https://raw.githubusercontent.com/Ofusa2026/org-view/main/share.html'];
+var OLINK_BASE='https://ofusa2026.github.io/org-view/';
+var OLINK_ANKEN='https://ehwlgbwpycglmopiqyty.supabase.co';
+var OLINK_GAS='https://script.google.com/macros/';
+var olinkState={checked:false,linked:false,name:'',html:null,err:''};
+async function olinkStatus(){
+  try{var r=await db.functions.invoke('olink',{body:{action:'status'}});var e=await fnError(r);if(e)throw new Error(e);
+    olinkState.linked=!!r.data.linked;olinkState.name=r.data.name||'';}catch(e){olinkState.linked=false;}
+  olinkState.checked=true;$('nav-olink').hidden=!olinkState.linked;$('grp-ofusa').hidden=!olinkState.linked;
+}
+/* iframe の中の fetch から呼ばれる。大房のDB・GAS あての通信を、RSOのサーバー経由に置きかえる */
+async function olinkFetch(url,opts){
+  opts=opts||{};var req;
+  var bodyObj=null;try{bodyObj=opts.body?JSON.parse(opts.body):null;}catch(e){bodyObj=null;}
+  if(url.indexOf(OLINK_ANKEN+'/rest/v1/rpc/')===0)req={kind:'rpc',name:url.slice((OLINK_ANKEN+'/rest/v1/rpc/').length).split('?')[0],body:bodyObj||{}};
+  else if(url.indexOf(OLINK_ANKEN+'/functions/v1/')===0)req={kind:'fn',name:url.slice((OLINK_ANKEN+'/functions/v1/').length).split('?')[0],body:bodyObj||{}};
+  else if(url.indexOf(OLINK_ANKEN+'/storage/v1/object/sign/')===0)req={kind:'sign',path:decodeURIComponent(url.slice((OLINK_ANKEN+'/storage/v1/object/sign/').length))};
+  else if(url.indexOf(OLINK_GAS)===0)req={kind:'gas',url:url};
+  else return new Response(JSON.stringify({error:'RSOからは使えない通信です'}),{status:403,headers:{'Content-Type':'application/json'}});
+  var r=await db.functions.invoke('olink',{body:Object.assign({action:'call'},req)});
+  var err=await fnError(r);
+  if(err)return new Response(JSON.stringify({error:err,message:err}),{status:502,headers:{'Content-Type':'application/json'}});
+  return new Response(r.data.body,{status:r.data.status||200,headers:{'Content-Type':r.data.type||'application/json'}});
+}
+window.RSO_OLINK={fetch:olinkFetch};
+var OLINK_SHIM='<script>(function(){var P=window.parent,A="'+OLINK_ANKEN+'",G="'+OLINK_GAS+'",of=window.fetch.bind(window);'+
+  'window.fetch=function(u,o){var url=typeof u==="string"?u:(u&&u.url)||"";if(url.indexOf(A)===0||url.indexOf(G)===0)return P.RSO_OLINK.fetch(url,o||{});return of(u,o);};'+
+  'window.__RSO_EMBED=true;})();<\/script>';
+async function olinkLoadHtml(){
+  var last='';
+  for(var i=0;i<OLINK_SRC.length;i++){
+    try{var r=await fetch(OLINK_SRC[i]+'?rso='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);var t=await r.text();if(t.indexOf('function getParam(')<0)throw new Error('形式');return t;}
+    catch(e){last=e.message;}
+  }
+  throw new Error('O-Linkの画面を読み込めませんでした（'+last+'）');
+}
+function olinkPatch(html){
+  var gp='function getParam(k){return new URLSearchParams(location.search).get(k);}';
+  if(html.indexOf(gp)<0)throw new Error('O-Linkの作りが変わったため、RSOで開けません。システム担当に連絡してください（getParam）');
+  html=html.replace(gp,'function getParam(k){if(k==="token")return "rso";return new URLSearchParams(location.search).get(k);}');
+  var head=html.search(/<head[^>]*>/i);if(head<0)throw new Error('O-Linkの画面の形式が想定と違います');
+  var end=html.indexOf('>',head)+1;
+  return html.slice(0,end)+'<base href="'+OLINK_BASE+'">'+OLINK_SHIM+html.slice(end);
+}
+async function renderOlink(force){
+  var el=$('v-olink');
+  if(!olinkState.checked)await olinkStatus();
+  if(!olinkState.linked){el.innerHTML='<div class="empty">この登録支援機関は、まだ大房行政書士法人（O-Link）と連携していません。<br>連携は運営（大房）が設定します。</div>';return;}
+  if(el.dataset.built&&!force)return;
+  el.innerHTML='<div class="empty">O-Link を読み込み中…</div>';
+  try{
+    if(!olinkState.html||force)olinkState.html=olinkPatch(await olinkLoadHtml());
+    el.innerHTML='<div class="hint" style="margin:0 0 6px">大房行政書士法人の登録支援機関マイページ（O-Link）です。RSOのログインのまま使えます。依頼・進捗・書類はすべて大房のシステムに保存されます。</div>'+
+      '<iframe id="olinkFrame" title="O-Link" style="width:100%;height:calc(100vh - 170px);min-height:560px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>';
+    $('olinkFrame').srcdoc=olinkState.html;el.dataset.built='1';
+  }catch(e){el.dataset.built='';el.innerHTML='<div class="msg">'+esc(e.message)+'</div><div style="margin-top:8px"><button class="btn btn-sm" id="olRetry">もう一度読み込む</button></div>';$('olRetry').onclick=function(){renderOlink(true);};}
+}
+/* 運営：機関ごとのO-Link連携 */
+var olinkLinks=null;
+async function olinkAdminLoad(){var r=await db.functions.invoke('olink',{body:{action:'admin_list'}});var e=await fnError(r);if(e){olinkLinks={};return;}olinkLinks={};(r.data.links||[]).forEach(function(l){olinkLinks[l.org_id]=l;});}
+function olinkAdminCell(o){var l=(olinkLinks||{})[o.id];
+  return l?'<span style="color:#2f855a;font-weight:700">連携中</span><div class="sub" style="font-size:11px">'+esc(l.olink_name||'')+'</div><button class="btn btn-sm" data-olset="'+o.id+'">変更</button> <button class="btn btn-sm btn-danger" data-olunset="'+o.id+'">解除</button>'
+    :'<span class="sub">未連携</span> <button class="btn btn-sm" data-olset="'+o.id+'">連携する</button>';}
+function olinkAdminBind(box){
+  box.querySelectorAll('[data-olset]').forEach(function(b){b.onclick=async function(){var o=orgList.filter(function(x){return x.id===b.dataset.olset;})[0]||{};
+    var url=prompt(o.name+' と結ぶ O-Link の URL を貼ってください\n（例：https://ofusa2026.github.io/org-view/share.html?token=…）','');if(url==null||!url.trim())return;
+    var pass=prompt('O-Link のパスワード（ない場合は空のまま OK）','');if(pass==null)return;
+    b.disabled=true;var r=await db.functions.invoke('olink',{body:{action:'admin_set',orgId:o.id,url:url.trim(),pass:pass.trim()}});var e=await fnError(r);
+    if(e){toast(e);b.disabled=false;return;}toast(o.name+' を O-Link「'+r.data.olinkName+'」と連携しました');await olinkAdminLoad();renderOrgs();};});
+  box.querySelectorAll('[data-olunset]').forEach(function(b){b.onclick=async function(){var o=orgList.filter(function(x){return x.id===b.dataset.olunset;})[0]||{};
+    if(!confirm(o.name+' の O-Link 連携を解除しますか？\nこの機関のRSOから「大房への依頼」が見えなくなります（O-Link自体のデータは消えません）。'))return;
+    b.disabled=true;var r=await db.functions.invoke('olink',{body:{action:'admin_unset',orgId:o.id}});var e=await fnError(r);if(e){toast(e);b.disabled=false;return;}toast('連携を解除しました');await olinkAdminLoad();renderOrgs();};});
+}
+
 /* ---------- 運営：登録支援機関の管理 ---------- */
 var orgList=null, orgBusy=false;
 async function loadOrgs(){var r=await db.functions.invoke('org-admin',{body:{action:'list_orgs'}});var err=await fnError(r);if(err)throw new Error(err);orgList=r.data.orgs||[];}
 async function renderOrgs(){
   if(!(me&&me.role==='operator')){$('orgsBody').innerHTML='';return;}
-  if(orgList===null){$('orgsBody').innerHTML='<div class="empty">読み込み中…</div>';try{await loadOrgs();}catch(e){$('orgsBody').innerHTML='<div class="msg">'+esc(e.message)+'</div>';return;}}
+  if(orgList===null){$('orgsBody').innerHTML='<div class="empty">読み込み中…</div>';try{await loadOrgs();await olinkAdminLoad();}catch(e){$('orgsBody').innerHTML='<div class="msg">'+esc(e.message)+'</div>';return;}}
   $('orgsBody').innerHTML='<div class="kcard"><h3><span>登録支援機関を追加</span></h3><div class="form">'+
     '<label for="no_name">登録支援機関の名称</label><div class="span3"><input type="text" id="no_name" placeholder="例：株式会社〇〇"></div>'+
     '<label for="no_admin">管理者の氏名</label><input type="text" id="no_admin">'+
     '<label for="no_email">管理者のメール</label><input type="text" id="no_email" autocomplete="off">'+
     '<label for="no_pass">初期パスワード</label><input type="text" id="no_pass" autocomplete="off" placeholder="8文字以上">'+
     '</div><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap"><span class="hint" style="margin:0">作った機関の管理者は、ログイン後にマイページで基本情報を入れ、自分の職員を追加できます。運営からは、各機関の見込み客や活動は見えません。</span><button class="btn btn-primary" id="noAdd"'+(orgBusy?' disabled':'')+'>作成する</button></div></div>'+
-    '<div class="tablewrap"><table><thead><tr><th>名称</th><th>登録番号</th><th class="r">ユーザー</th><th>作成日</th></tr></thead><tbody>'+
-    (orgList.length?orgList.map(function(o){return '<tr><td class="nm">'+esc(o.name)+(o.id===me.org_id?' <span class="sub">（自分の所属）</span>':'')+'</td><td>'+esc(o.reg_no||'')+'</td><td class="r num">'+o.members+'人</td><td class="num sub">'+esc((o.created_at||'').slice(0,10))+'</td></tr>';}).join(''):'<tr><td colspan="4" class="empty">まだありません</td></tr>')+
+    '<div class="tablewrap"><table><thead><tr><th>名称</th><th>登録番号</th><th class="r">ユーザー</th><th>作成日</th><th>大房（O-Link）連携</th></tr></thead><tbody>'+
+    (orgList.length?orgList.map(function(o){return '<tr><td class="nm">'+esc(o.name)+(o.id===me.org_id?' <span class="sub">（自分の所属）</span>':'')+'</td><td>'+esc(o.reg_no||'')+'</td><td class="r num">'+o.members+'人</td><td class="num sub">'+esc((o.created_at||'').slice(0,10))+'</td><td style="white-space:nowrap">'+olinkAdminCell(o)+'</td></tr>';}).join(''):'<tr><td colspan="5" class="empty">まだありません</td></tr>')+
     '</tbody></table></div>';
   $('noAdd').onclick=async function(){
     var name=$('no_name').value.trim(), email=$('no_email').value.trim(), pass=$('no_pass').value, admin=$('no_admin').value.trim();
@@ -1142,6 +1222,7 @@ async function renderOrgs(){
     if(err){toast(err);this.disabled=false;return;}
     toast(name+' を作成しました'); orgList=null; renderOrgs();
   };
+  olinkAdminBind($('orgsBody'));
 }
 
 /* ---------- ヒアリング項目 ---------- */
@@ -1154,7 +1235,7 @@ var XVIEWS=['audit','companies','workers','sched','ledger','jobs','cands','tchat
 function isXView(v){return XVIEWS.indexOf(v)>=0;}
 function render(force){
   if(isXView(view)){if(window.RSOX&&window.RSO_READY)window.RSOX.render(view);return;}
-  if(view==='kpi')renderKpi(); else if(view==='leads')renderLeads(); else if(view==='mypage'){if(force||!mpShown)renderMypage();} else if(view==='orgs'){if(force||orgList===null)renderOrgs();} else if(view==='account')renderAccount(); else renderHearing();
+  if(view==='kpi')renderKpi(); else if(view==='leads')renderLeads(); else if(view==='mypage'){if(force||!mpShown)renderMypage();} else if(view==='orgs'){if(force||orgList===null)renderOrgs();} else if(view==='account')renderAccount(); else if(view==='olink')renderOlink(false); else renderHearing();
 }
 
 /* 移植した機能（下の別スクリプト）から使う小物 */
@@ -1184,6 +1265,7 @@ async function startApp(ses){
     $('sbUser').textContent=(myOrg.name||'')+'　'+(ses.user.email||'')+'（'+ROLE_NAME[me.role]+'）';
     $('nav-orgs').hidden=me.role!=='operator';
     $('nav-audit').hidden=!(me.role==='admin'||me.role==='operator');
+    olinkStatus();
   }catch(e){var n1=$('dbNotice');n1.hidden=false;n1.textContent='所属の読み込みに失敗しました：'+(e&&e.message||'');return;}
   try{await loadAll();}catch(e){var n=$('dbNotice');n.hidden=false;n.textContent='データを読み込めませんでした：'+(e&&e.message||'');}
   window.RSO_READY=true;if(window.RSOX)window.RSOX.start().catch(function(){});

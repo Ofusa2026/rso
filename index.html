@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261026.5 -->
-<title>所属機関営業ボード</title>
+<!-- RSO_VERSION ver.20261104.1 -->
+<title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
 :root{
@@ -219,7 +219,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
 <body>
 <div id="loginView" hidden>
   <div class="login">
-    <h2>所属機関営業ボード</h2>
+    <h2>RSO（登録支援機関システム）</h2>
     <p>登録したメールアドレスとパスワードでログインしてください。</p>
     <div id="loginMsg" class="msg" hidden></div>
     <input type="email" id="liEmail" placeholder="メールアドレス" autocomplete="username">
@@ -230,7 +230,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
 <div id="appView" hidden>
 
 <nav class="sidebar" aria-label="メニュー">
-  <div class="sb-logo">所属機関営業ボード</div>
+  <div class="sb-logo">RSO<div style="font-size:11px;font-weight:600;color:var(--side-text);margin-top:2px">登録支援機関システム</div></div>
   <div class="sb-group">メニュー</div>
   <button class="nav-item" id="nav-kpi" data-v="kpi">KPI</button>
   <button class="nav-item" id="nav-leads" data-v="leads">見込み客</button>
@@ -251,7 +251,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261026.5</div>
+      <div class="ver">ver.20261104.1</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>

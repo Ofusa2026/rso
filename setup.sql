@@ -1117,3 +1117,7 @@ alter table public.workers add column if not exists support_plan_date date;
 alter table public.workers add column if not exists support_start_date date;
 alter table public.workers add column if not exists support_end_date date;
 alter table public.workers add column if not exists support_end_reason text;
+
+-- ===== 2026/11/04 支援委託契約書（参考様式第5-10号）用 =====
+alter table public.companies add column if not exists support_fee_items jsonb default '[]'::jsonb;
+alter table public.companies add column if not exists support_court text;

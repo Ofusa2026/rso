@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.3 -->
+<!-- RSO_VERSION ver.20261105.4 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -369,7 +369,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.3</div>
+      <div class="ver">ver.20261105.4</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1163,9 +1163,11 @@ var OLINK_ANKEN='https://ehwlgbwpycglmopiqyty.supabase.co';
 var OLINK_GAS='https://script.google.com/macros/';
 var olinkState={checked:false,linked:false,name:'',html:null,err:''};
 async function olinkStatus(){
+  if(!me||!db)return false;               /* ログインの確認が終わるまでは聞かない */
   try{var r=await db.functions.invoke('olink',{body:{action:'status'}});var e=await fnError(r);if(e)throw new Error(e);
-    olinkState.linked=!!r.data.linked;olinkState.name=r.data.name||'';}catch(e){olinkState.linked=false;}
-  olinkState.checked=true;$('nav-olink').hidden=!olinkState.linked;$('grp-ofusa').hidden=!olinkState.linked;
+    olinkState.linked=!!r.data.linked;olinkState.name=r.data.name||'';olinkState.checked=true;olinkState.err='';}
+  catch(e){olinkState.err=(e&&e.message)||'確認できませんでした';return false;}   /* 失敗は「未連携」扱いにしない */
+  $('nav-olink').hidden=!olinkState.linked;$('grp-ofusa').hidden=!olinkState.linked;return true;
 }
 /* iframe の中の fetch から呼ばれる。大房のDB・GAS あての通信を、RSOのサーバー経由に置きかえる */
 async function olinkFetch(url,opts){
@@ -1203,7 +1205,9 @@ function olinkPatch(html){
 }
 async function renderOlink(force){
   var el=$('v-olink');
+  if(!me){el.innerHTML='<div class="empty">読み込み中…</div>';return;}
   if(!olinkState.checked)await olinkStatus();
+  if(!olinkState.checked){el.innerHTML='<div class="msg">O-Linkとの連携を確認できませんでした：'+esc(olinkState.err||'')+'</div><div style="margin-top:8px"><button class="btn btn-sm" id="olRetry">もう一度確認する</button></div>';$('olRetry').onclick=function(){renderOlink(true);};return;}
   if(!olinkState.linked){el.innerHTML='<div class="empty">この登録支援機関は、まだ大房行政書士法人（O-Link）と連携していません。<br>連携は運営（大房）が設定します。</div>';return;}
   if(el.dataset.built&&!force)return;
   el.innerHTML='<div class="empty">O-Link を読み込み中…</div>';
@@ -1298,7 +1302,7 @@ async function startApp(ses){
     $('sbUser').textContent=(myOrg.name||'')+'　'+(ses.user.email||'')+'（'+ROLE_NAME[me.role]+'）';
     $('nav-orgs').hidden=me.role!=='operator';
     $('nav-audit').hidden=!(me.role==='admin'||me.role==='operator');
-    olinkStatus();
+    olinkStatus().then(function(){if(view==='olink')renderOlink(true);});
   }catch(e){var n1=$('dbNotice');n1.hidden=false;n1.textContent='所属の読み込みに失敗しました：'+(e&&e.message||'');return;}
   try{await loadAll();}catch(e){var n=$('dbNotice');n.hidden=false;n.textContent='データを読み込めませんでした：'+(e&&e.message||'');}
   window.RSO_READY=true;if(window.RSOX)window.RSOX.start().catch(function(){});

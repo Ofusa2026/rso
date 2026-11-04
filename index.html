@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261104.3 -->
+<!-- RSO_VERSION ver.20261104.4 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -340,7 +340,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261104.3</div>
+      <div class="ver">ver.20261104.4</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1344,6 +1344,7 @@ function modalHandler(e){
     var b=el.closest('button,[data-xtab]');if(!b)return;
     if(b.dataset.xclose){closeModal();return;}
     if(b.dataset.xtab){M.tab=b.dataset.xtab;drawModal();return;}
+    if(b.dataset.lgbook){ledgerFromModal(b.dataset.lgbook,b.dataset.lgmode);return;}
     if(b.dataset.xsave){M.save();return;}
     if(b.dataset.xdel){M.del();return;}
     if(b.dataset.radd){var k=b.dataset.radd;M.dr[k]=(M.dr[k]||[]).concat([{}]);M.dirty=true;drawModal(true);return;}
@@ -1436,6 +1437,7 @@ function openCompany(id,focusK,tab){
       {k:'workers',l:'人材',hide:function(){return M.isNew;},badge:function(){return ' <span class="tabn">'+D.wk.filter(function(w){return w.company_id===M.dr.id;}).length+'</span>';},html:function(d){return coWorkersHtml(d.id);}},
       {k:'meet',l:'面談記録',hide:function(){return M.isNew;},html:function(d){return meetingsHtml({company_id:d.id});}},
       {k:'sched',l:'支援スケジュール',hide:function(){return M.isNew;},html:function(d){return schedListHtml(D.sc.filter(function(s){return s.company_id===d.id;}),{company_id:d.id});}},
+      {k:'ledger',l:'監査帳簿',hide:function(){return M.isNew;},html:function(d){return ledgerTabHtml('co',d);}},
       {k:'log',l:'変更履歴',hide:function(){return M.isNew;},html:function(){return '<div id="coLog" class="sub">読み込み中…</div>';},after:function(){loadChangeLog(M.dr.id);}}
     ],
     save:saveCompany,del:deleteCompany,
@@ -1628,6 +1630,7 @@ function openWorker(id,focusK,preset){
       {k:'basic',l:'基本情報',html:workerBasicHtml},
       {k:'meet',l:'面談記録',hide:function(){return M.isNew;},html:function(d){return meetingsHtml({worker_id:d.id,company_id:d.company_id});}},
       {k:'sched',l:'支援スケジュール',hide:function(){return M.isNew;},html:function(d){return schedListHtml(D.sc.filter(function(s){return s.worker_id===d.id;}),{worker_id:d.id,company_id:d.company_id});}},
+      {k:'ledger',l:'監査帳簿',hide:function(){return M.isNew;},html:function(d){return ledgerTabHtml('wk',d);}},
       {k:'hist',l:'支援履歴',hide:function(){return M.isNew;},html:function(d){return supportHistHtml(d);}},
       {k:'kensetsu',l:'建設業の報告',hide:function(){return !/建設/.test(M.dr.applicant_field||'');},html:function(d){return '<div class="hint" style="margin-bottom:8px">建設分野の人材は、国土交通省の外国人就労管理システムへの報告が必要です。報告した日を記録します。</div>'+fieldsTab('workers','建設業の報告',d);}}
     ],
@@ -2574,6 +2577,25 @@ function printBook(){
     '.ltbl thead{display:table-header-group}.ltbl tr{page-break-inside:avoid}@page{size:A4 '+(land?'landscape':'portrait')+';margin:9mm}@media print{body{margin:0}}</style></head><body><div class="lbook">'+bookHead(B)+r.html+
     '<div class="lfoot">※ この帳簿は、支援対象者に対する支援を終了した日から1年以上保存してください（出入国管理及び難民認定法施行規則・特定技能運用要領 第9章）。</div></div><script>window.onload=function(){window.print();}<\/script></body></html>');
   w.document.close();
+}
+
+/* 所属機関・人材の詳細画面から帳簿を出す（その所属機関／その人材だけに絞る） */
+function ledgerTabHtml(kind,d){
+  var ks=kind==='co'?['b2','b3','a1','a2','a3','a4','a5','a6','a7','a8','a9','a10','a11']:['b3','a1','a2','a3','a4','a5','a6','a7','a8','a9','a10','a11'];
+  var f0=kind==='wk'&&supStart(d)&&supStart(d)<fyStart()?supStart(d):fyStart();
+  return '<div class="xsec"><div class="xsec-t">'+(kind==='co'?'この所属機関':'この人材')+'の監査帳簿</div>'+
+    '<div class="toolbar" style="margin-bottom:8px"><label class="sub">期間 <input type="date" id="lgFrom" value="'+esc(f0)+'"></label><label class="sub">〜 <input type="date" id="lgTo" value="'+esc(today())+'"></label></div>'+
+    '<table class="tbl"><tbody>'+ks.map(function(k){var B=BOOK_BY[k];return '<tr><td style="white-space:nowrap;font-weight:700;color:#2b6cb0">'+esc(B.no)+'</td><td>'+esc(B.t)+'</td><td style="white-space:nowrap;text-align:right">'+
+      '<button type="button" class="btn btn-sm" data-lgbook="'+k+'" data-lgmode="view">画面で見る</button> <button type="button" class="btn btn-sm btn-primary" data-lgbook="'+k+'" data-lgmode="print">印刷・PDF</button></td></tr>';}).join('')+'</tbody></table>'+
+    '<div class="hint" style="margin-top:6px">'+(kind==='co'?'この所属機関で支援した人材の分だけを出します。':'この人材の分だけを出します。')+'①支援実施体制管理簿は機関全体の帳簿なので、左メニューの「監査帳簿」から出してください。</div></div>';
+}
+function ledgerFromModal(k,mode){
+  if(!M||!M.dr)return;var isCo=M.mod==='companies',d=M.dr;
+  var f=($('lgFrom')||{}).value||fyStart(),t=($('lgTo')||{}).value||today();
+  var keep=JSON.parse(JSON.stringify(VL));
+  VL.book=k;VL.from=f;VL.to=t;VL.co=isCo?d.id:(d.company_id||'');VL.wk=isCo?'':d.id;
+  if(mode==='print'){printBook();VL=keep;return;}
+  closeModal();if(M){VL=keep;return;}R.setView('ledger');
 }
 function renderLedger(){
   var el=$('v-ledger');if(!VL.from){VL.from=fyStart();VL.to=today();}

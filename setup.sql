@@ -1130,3 +1130,11 @@ alter table public.workers add column if not exists support_contract_pdf_url tex
 -- ===== 2026/11/04 アカウント設定（ユーザーごとの表示名・担当者との紐づけ） =====
 alter table public.members add column if not exists staff_name text;
 -- 書き込みは関数 update_my_member（本人）／ admin_update_member（管理者・運営）だけ。定義は Supabase のマイグレーション member_account_settings_20261104 を参照
+
+-- ===== 2026/11/04 ユーザーの停止・削除の制限 =====
+-- members.active=false のユーザーは my_org_id()/my_role() が null になり、どのデータにも触れられない（Auth側もban）
+alter table public.members add column if not exists active boolean not null default true;
+alter table public.members add column if not exists disabled_at timestamptz;
+alter table public.members add column if not exists disabled_by text;
+-- support_schedules / company_meetings / leads / activities の DELETE は管理者・運営だけ（ポリシー "admin delete"）
+-- 定義は Supabase のマイグレーション member_disable_and_admin_delete_20261104 を参照

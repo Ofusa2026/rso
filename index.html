@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261104.13 -->
+<!-- RSO_VERSION ver.20261104.14 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -341,7 +341,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261104.13</div>
+      <div class="ver">ver.20261104.14</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -542,6 +542,7 @@ function leadById(id){for(var i=0;i<leads.length;i++)if(leads[i].id===id)return 
 function orgStaff(){var pf=(myOrg&&myOrg.profile)||{},r=[],o={};(pf.staff||[]).concat(pf.employees||[]).forEach(function(x){var n=String(x.name||'').trim();if(n&&!o[n]){o[n]=1;r.push(n);}});return r;}
 function staffSel(id,cur){var o=orgStaff(),h='<option value="">（未選択）</option>'+o.map(function(n){return '<option'+(n===cur?' selected':'')+'>'+esc(n)+'</option>';}).join('');if(cur&&o.indexOf(cur)<0)h+='<option selected>'+esc(cur)+'</option>';
   return '<select id="'+id+'">'+h+'</select>'+(o.length?'':'<div class="sub" style="font-size:11px">担当者はマイページの「支援責任者・支援担当者」「支援担当者にならない従業員」から選びます</div>');}
+function isAdminMe(){return !!(me&&(me.role==='admin'||me.role==='operator'));}
 function staffList(){var s={};leads.forEach(function(l){if(l.staff)s[l.staff]=1;});acts.forEach(function(a){if(a.staff)s[a.staff]=1;});return Object.keys(s).sort();}
 function lastAct(id){var best=null;acts.forEach(function(a){if(a.leadId===id&&a.result!=='不通'&&(!best||a.date>best.date))best=a;});return best;}
 function isOpen(l){return l.stage!=='受注'&&l.stage!=='失注'&&l.stage!=='保留';}
@@ -762,7 +763,7 @@ function renderDrawer(keepOpen){
   '<div class="sec-title">メモ</div><div class="form"><div style="grid-column:1/-1"><textarea id="d_memo">'+esc(L.memo)+'</textarea></div></div>'+
   (isNew?'':'<div class="sub" style="margin-top:8px">登録日 '+esc((L.createdAt||'').slice(0,10))+'　最終更新 '+esc((L.updatedAt||'').slice(0,10))+'</div>')+
   '</div>'+
-  '<div class="dfoot" id="dfoot">'+(isNew?'<span></span>':'<button class="btn btn-sm btn-danger" id="dDel">削除</button>')+'<div style="display:flex;gap:8px"><button class="btn" id="dCancel">閉じる</button><button class="btn btn-primary" id="dSave">'+(isNew?'登録する':'保存する')+'</button></div></div>';
+  '<div class="dfoot" id="dfoot">'+(isNew||!isAdminMe()?'<span></span>':'<button class="btn btn-sm btn-danger" id="dDel">削除</button>')+'<div style="display:flex;gap:8px"><button class="btn" id="dCancel">閉じる</button><button class="btn btn-primary" id="dSave">'+(isNew?'登録する':'保存する')+'</button></div></div>';
   var dr=$('drawer'), top=dr.scrollTop; dr.innerHTML=html; dr.scrollTop=top;
   $('dClose').onclick=closeDrawer; $('dCancel').onclick=closeDrawer; $('dSave').onclick=saveLead;
   if($('dDel'))$('dDel').onclick=askDelete;
@@ -793,7 +794,7 @@ function askDelete(){
   $('dNo').onclick=refresh;
   $('dYes').onclick=async function(){
     var id=openId;
-    try{must(await db.from('leads').delete().eq('id',id));toast('削除しました');closeDrawer();await loadAll();}
+    try{var del=must(await db.from('leads').delete().eq('id',id).select('id'));if(!del||!del.length){toast('削除は管理者だけができます（監査の記録を守るため）。管理者に依頼してください');return;}toast('削除しました');closeDrawer();await loadAll();}
     catch(e){toast('削除できませんでした：'+(e&&e.message||''));}
   };
 }
@@ -942,7 +943,9 @@ function canEditOrg(){return me&&(me.role==='admin'||me.role==='operator');}
 function profExpiry(p){if(p.reg_expiry)return p.reg_expiry;if(!p.reg_date)return '';var d=new Date(p.reg_date+'T00:00:00');d.setFullYear(d.getFullYear()+5);d.setDate(d.getDate()-1);return ymd(d);}
 function nextTeiki(){var d=new Date(),y=d.getFullYear(),due=y+'-05-31';if(today()>due)due=(y+1)+'-05-31';return due;}
 function daysTo(s){return Math.round((new Date(s+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5);}
-async function loadMembers(){try{mpMembers=must(await db.from('members').select('user_id,role,display_name,staff_name,created_at').order('created_at'));}catch(e){mpMembers=[];}}
+var mpAuth={};
+async function loadMembers(){try{mpMembers=must(await db.from('members').select('user_id,role,display_name,staff_name,active,disabled_at,disabled_by,created_at').order('created_at'));}catch(e){mpMembers=[];}
+  if(me&&(me.role==='admin'||me.role==='operator')){try{var r=await db.functions.invoke('org-admin',{body:{action:'list_members'}});if(!(await fnError(r)))mpAuth=(r.data&&r.data.users)||{};}catch(e){}}}
 async function renderMypage(){
   if(!myOrg){$('mpBody').innerHTML='<div class="empty">読み込み中…</div>';return;}
   if(!mpDraft){mpDraft=JSON.parse(JSON.stringify(myOrg.profile||{}));if(!mpDraft.corp_name)mpDraft.corp_name=myOrg.name;await loadMembers();}
@@ -1029,7 +1032,7 @@ function staffPeople(){var pf=(myOrg&&myOrg.profile)||{},out=[],o={};
   (pf.staff||[]).forEach(function(x){var n=String(x.name||'').trim();if(n&&!o[n]){o[n]=1;out.push({name:n,kind:x.kind||'支援担当者',title:x.title||''});}});
   (pf.employees||[]).forEach(function(x){var n=String(x.name||'').trim();if(n&&!o[n]){o[n]=1;out.push({name:n,kind:'従業員（'+(x.emp||'支援担当者にならない')+'）',title:x.title||''});}});
   return out;}
-function staffLinkOpts(cur,selfId){var ppl=staffPeople(),taken={};(mpMembers||[]).forEach(function(m){if(m.staff_name&&m.user_id!==selfId)taken[m.staff_name]=m.display_name||'別のユーザー';});
+function staffLinkOpts(cur,selfId){var ppl=staffPeople(),taken={};(mpMembers||[]).forEach(function(m){if(m.staff_name&&m.user_id!==selfId&&m.active!==false)taken[m.staff_name]=m.display_name||'別のユーザー';});
   var h='<option value="">（紐づけない）</option>'+ppl.map(function(p){return '<option value="'+esc(p.name)+'"'+(p.name===cur?' selected':'')+(taken[p.name]&&p.name!==cur?' disabled':'')+'>'+esc(p.name)+'　'+esc(p.kind)+(taken[p.name]&&p.name!==cur?'（'+esc(taken[p.name])+'さんが使用中）':'')+'</option>';}).join('');
   if(cur&&!ppl.some(function(p){return p.name===cur;}))h+='<option value="'+esc(cur)+'" selected>'+esc(cur)+'（マイページにいません）</option>';
   return h;}
@@ -1066,16 +1069,24 @@ async function renderAccount(){
 }
 /* マイページのユーザー一覧（管理者は表示名・権限・紐づけを直せる） */
 function membersTable(){
-  var ed=canEditOrg();
-  return '<div style="overflow-x:auto"><table><thead><tr><th>表示名</th><th>マイページの担当者・従業員</th><th>権限</th><th>登録日</th>'+(ed?'<th></th>':'')+'</tr></thead><tbody>'+mpMembers.map(function(m,i){
-    var self=me&&m.user_id===me.user_id;
-    if(!ed)return '<tr><td>'+esc(m.display_name||'（名前未設定）')+(self?' <span class="law">自分</span>':'')+'</td><td>'+esc(m.staff_name||'—')+'</td><td>'+esc(ROLE_NAME[m.role]||m.role)+'</td><td class="num sub">'+esc((m.created_at||'').slice(0,10))+'</td></tr>';
-    var roleSel=m.role==='operator'||self?'<span>'+esc(ROLE_NAME[m.role]||m.role)+'</span>':'<select data-mu="role" data-i="'+i+'"><option value="member"'+(m.role==='member'?' selected':'')+'>一般</option><option value="admin"'+(m.role==='admin'?' selected':'')+'>管理者</option></select>';
-    return '<tr><td><input type="text" data-mu="display_name" data-i="'+i+'" value="'+esc(m.display_name||'')+'">'+(self?' <span class="law">自分</span>':'')+'</td>'+
-      '<td><select data-mu="staff_name" data-i="'+i+'">'+staffLinkOpts(m.staff_name||'',m.user_id)+'</select></td><td>'+roleSel+'</td><td class="num sub">'+esc((m.created_at||'').slice(0,10))+'</td>'+
-      '<td><button class="btn btn-sm" data-musave="'+i+'">保存</button></td></tr>';}).join('')+'</tbody></table></div>'+
-    (ed?'<div class="hint">表示名はチャットに出る名前です。担当者に紐づけたユーザーは、担当欄の初期値に自分の名前が入ります。自分の権限は変えられません。パスワードは本人が「アカウント設定」で変えます。</div>':'');
+  var ed=canEditOrg(),fmtDt=function(x){if(!x)return '—';var d=new Date(x);return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+  var act=mpMembers.filter(function(m){return m.active!==false;}).length;
+  return '<div style="overflow-x:auto"><table><thead><tr><th>表示名</th><th>マイページの担当者・従業員</th><th>権限</th>'+(ed?'<th>メールアドレス（ログインID）</th><th>最終ログイン</th>':'')+'<th>状態</th>'+(ed?'<th></th>':'')+'</tr></thead><tbody>'+mpMembers.map(function(m,i){
+    var self=me&&m.user_id===me.user_id,off=m.active===false,au=mpAuth[m.user_id]||{};
+    var st=off?'<span style="color:#c53030;font-weight:700;white-space:nowrap">停止中</span><div class="sub" style="font-size:11px;white-space:nowrap">'+esc((m.disabled_at||'').slice(0,10))+'</div>'+(m.disabled_by?'<div class="sub" style="font-size:11px;white-space:nowrap">'+esc(m.disabled_by)+'</div>':''):'<span style="color:#2f855a;white-space:nowrap">利用中</span>';
+    if(!ed)return '<tr'+(off?' style="opacity:.55"':'')+'><td>'+esc(m.display_name||'（名前未設定）')+(self?' <span class="law">自分</span>':'')+'</td><td>'+esc(m.staff_name||'—')+'</td><td>'+esc(ROLE_NAME[m.role]||m.role)+'</td><td>'+st+'</td></tr>';
+    var lock=m.role==='operator'&&me.role!=='operator';
+    var roleSel=m.role==='operator'||self||off?'<span>'+esc(ROLE_NAME[m.role]||m.role)+'</span>':'<select data-mu="role" data-i="'+i+'"><option value="member"'+(m.role==='member'?' selected':'')+'>一般</option><option value="admin"'+(m.role==='admin'?' selected':'')+'>管理者</option></select>';
+    var btns=(off?'':'<button class="btn btn-sm" data-musave="'+i+'">保存</button>')+
+      (self||lock?'':(off?' <button class="btn btn-sm" data-muon="'+i+'">利用を再開</button>':' <button class="btn btn-sm" data-mupw="'+i+'">パスワード再設定</button> <button class="btn btn-sm btn-danger" data-muoff="'+i+'">停止</button>'));
+    return '<tr'+(off?' style="opacity:.6"':'')+'><td><input type="text" data-mu="display_name" data-i="'+i+'" value="'+esc(m.display_name||'')+'"'+(off?' disabled':'')+'>'+(self?' <span class="law">自分</span>':'')+'</td>'+
+      '<td><select data-mu="staff_name" data-i="'+i+'"'+(off?' disabled':'')+'>'+staffLinkOpts(m.staff_name||'',m.user_id)+'</select></td><td>'+roleSel+'</td>'+
+      '<td class="sub" style="font-size:12px">'+esc(au.email||'')+'</td><td class="num sub" style="font-size:12px">'+esc(fmtDt(au.last_sign_in_at))+'</td><td>'+st+'</td><td style="white-space:nowrap">'+btns+'</td></tr>';}).join('')+'</tbody></table></div>'+
+    (ed?'<div class="hint">表示名はチャットに出る名前です。担当者に紐づけたユーザーは、担当欄の初期値に自分の名前が入ります。<br>辞めた人は「停止」してください。すぐにログインもデータの閲覧もできなくなります（記録に残った名前は消えません）。パスワードを忘れた人は「パスワード再設定」で仮のパスワードを決めて本人に伝え、本人に「アカウント設定」で変えてもらってください。<br>自分の権限・停止・パスワードはここでは変えられません（利用中 '+act+'人）。</div>':'');
 }
+async function memberAction(action,m,extra){
+  var r=await db.functions.invoke('org-admin',{body:Object.assign({action:action,userId:m.user_id},extra||{})});
+  var err=await fnError(r);if(err){toast(err);return false;}return true;}
 function bindMembers(box){
   box.querySelectorAll('[data-mu]').forEach(function(el){var h=function(){var m=mpMembers[+el.dataset.i];m['_'+el.dataset.mu]=el.value;if(el.dataset.mu==='staff_name'&&el.value){var n=box.querySelector('[data-mu="display_name"][data-i="'+el.dataset.i+'"]');if(n&&!n.value.trim()){n.value=el.value;m._display_name=el.value;}}};el.addEventListener('input',h);el.addEventListener('change',h);});
   box.querySelectorAll('[data-musave]').forEach(function(b){b.onclick=async function(){var m=mpMembers[+b.dataset.musave];
@@ -1085,6 +1096,14 @@ function bindMembers(box){
     if(r.error){toast('保存できませんでした：'+r.error.message);b.disabled=false;return;}
     if(me&&m.user_id===me.user_id){me.display_name=dn;me.staff_name=st||null;}
     toast('保存しました');await loadMembers();renderMypage();};});
+  box.querySelectorAll('[data-muoff]').forEach(function(b){b.onclick=async function(){var m=mpMembers[+b.dataset.muoff];
+    if(!confirm((m.display_name||'このユーザー')+' を停止しますか？\n\nすぐにログインできなくなり、データも見られなくなります。\nチャットや記録に残った名前は消えません。あとで「利用を再開」できます。'))return;
+    b.disabled=true;if(await memberAction('disable_user',m)){toast('停止しました');await loadMembers();renderMypage();}else b.disabled=false;};});
+  box.querySelectorAll('[data-muon]').forEach(function(b){b.onclick=async function(){var m=mpMembers[+b.dataset.muon];if(!confirm((m.display_name||'このユーザー')+' の利用を再開しますか？'))return;
+    b.disabled=true;if(await memberAction('enable_user',m)){toast('利用を再開しました');await loadMembers();renderMypage();}else b.disabled=false;};});
+  box.querySelectorAll('[data-mupw]').forEach(function(b){b.onclick=async function(){var m=mpMembers[+b.dataset.mupw];
+    var pw=prompt((m.display_name||'このユーザー')+' の仮のパスワード（8文字以上）を入れてください。\n本人に伝えて、ログイン後に「アカウント設定」で変えてもらってください。','');if(pw==null)return;pw=pw.trim();
+    if(pw.length<8){toast('パスワードは8文字以上にしてください');return;}b.disabled=true;if(await memberAction('reset_password',m,{password:pw}))toast('パスワードを再設定しました。本人に伝えてください');b.disabled=false;};});
 }
 
 async function addMember(){
@@ -1233,6 +1252,7 @@ var STATUS_GUIDE={
 var D={co:[],wk:[],sc:[],mt:[],jobs:[],cands:[],cjp:[],members:[],ind:[]}, loaded=false, loading=null;
 function me(){return R.me()||{};}
 function uid(){return R.uid();}
+function canDel(){var m=me();return m.role==='admin'||m.role==='operator';}
 function myName(){var m=me();return (m.staff_name||'').trim()||(m.display_name||'').trim()||(R.email()||'').split('@')[0]||'ユーザー';}
 function memberName(m){return (m.display_name||'').trim()||('ユーザー'+String(m.user_id||'').slice(0,4));}
 async function fetchAll(t,ord,filt){
@@ -1246,7 +1266,7 @@ async function loadX(){
   var a=await Promise.all([
     fetchAll('companies',['name'],nd),fetchAll('workers',['created_at'],nd),fetchAll('support_schedules',['scheduled_at']),
     fetchAll('company_meetings',['meeting_date',false]),fetchAll('job_progress',['src_row'],nd),fetchAll('candidates',['created_at',false],nd),
-    fetchAll('candidate_job_progress',['created_at']),db().from('members').select('user_id,role,display_name'),fetchAll('industry_options',['sort_order'])]);
+    fetchAll('candidate_job_progress',['created_at']),db().from('members').select('user_id,role,display_name,staff_name,active').eq('active',true),fetchAll('industry_options',['sort_order'])]);
   D.co=a[0];D.wk=a[1];D.sc=a[2];D.mt=a[3];D.jobs=a[4];D.cands=a[5];D.cjp=a[6];D.members=must(a[7])||[];D.ind=a[8];
   loaded=true;
 }
@@ -1812,10 +1832,10 @@ function openMeeting(id,preset){
         (d.schedule_id?'<div class="hint">この記録は支援スケジュールの定期面談とつながっています。相談内容は予定のメモにも反映されます。</div>':'');},
     after:function(el){el.querySelectorAll('[data-m]').forEach(function(i){i.addEventListener(i.tagName==='SELECT'||i.type==='radio'?'change':'input',function(){var k=i.dataset.m;if(k==='worker')d.worker_ids=i.value?[i.value]:[];else d[k]=i.value;if(k==='meeting_date'){var f=fiscalOf(d.meeting_date);d.fiscal_year=f.y;d.quarter=f.q;}if(k==='kind'||k==='company_id'||k==='meeting_date')drawSmall();});});
       el.querySelector('.xm-foot').addEventListener('click',async function(e){var b=e.target.closest('button');if(!b)return;if(b.dataset.sclose){closeSmall();return;}
-        if(b.dataset.mdel){if(!confirm('この面談記録を削除しますか？'))return;var r0=await db().from('company_meetings').delete().eq('id',d.id);if(r0.error){toast('削除できませんでした');return;}D.mt=D.mt.filter(function(x){return x.id!==d.id;});closeSmall();toast('削除しました');afterChange();return;}
+        if(b.dataset.mdel){if(!confirm('この面談記録を削除しますか？'))return;var r0=await db().from('company_meetings').delete().eq('id',d.id).select('id');if(r0.error){toast('削除できませんでした');return;}if(!r0.data||!r0.data.length){toast('削除は管理者だけができます（監査の記録を守るため）。管理者に依頼してください');return;}D.mt=D.mt.filter(function(x){return x.id!==d.id;});closeSmall();toast('削除しました');afterChange();return;}
         if(b.dataset.ssave||b.dataset.snext){await saveMeeting(d,!!b.dataset.snext);}});
       el.querySelector('.xm-head').addEventListener('click',function(e){if(e.target.closest('[data-sclose]'))closeSmall();});},
-    left:function(){return id?'<button class="btn btn-danger" data-mdel="1">削除</button>':'';},
+    left:function(){return id&&canDel()?'<button class="btn btn-danger" data-mdel="1">削除</button>':'';},
     right:function(){return '<button class="btn" data-sclose="1">やめる</button>'+(id?'':'<button class="btn" data-snext="1">保存して次の人材を記録</button>')+'<button class="btn btn-primary" data-ssave="1">保存する</button>';}
   });
 }
@@ -1971,12 +1991,12 @@ function openSched(id,preset){
         if(b.dataset.sx==='nonew'){d.wids=[];drawSmall();return;}
         if(b.dataset.sx==='addstaff'){var v=($('scStaffAdd').value||'').trim();if(v){d.staff_names=uniq((d.staff_names||[]).concat([v]));drawSmall();}return;}
         if(b.dataset.gcal){var u=gcalUrl(Object.assign({},d,{worker_id:d.worker_id||d.wids[0]}));if(u)window.open(u,'_blank','noopener');else toast('日付が決まっている予定だけカレンダーに追加できます');return;}
-        if(b.dataset.sdel){var w=byId(D.wk,d.worker_id)||{};if(!confirm('この予定を削除しますか？\n\n'+((EVT_BY[d.event_type]||{}).l||'')+'　'+(schedDate(d)||d.plan_ym||'')+'　'+(w.name||'')+'\n\n※ 人材の「支援情報」の日付と面談記録は消えません'))return;var r=await db().from('support_schedules').delete().eq('id',d.id);if(r.error){toast('削除できませんでした');return;}D.sc=D.sc.filter(function(s){return s.id!==d.id;});closeSmall();toast('削除しました');afterChange();return;}
+        if(b.dataset.sdel){var w=byId(D.wk,d.worker_id)||{};if(!confirm('この予定を削除しますか？\n\n'+((EVT_BY[d.event_type]||{}).l||'')+'　'+(schedDate(d)||d.plan_ym||'')+'　'+(w.name||'')+'\n\n※ 人材の「支援情報」の日付と面談記録は消えません'))return;var r=await db().from('support_schedules').delete().eq('id',d.id).select('id');if(!r.error&&(!r.data||!r.data.length)){toast('削除は管理者だけができます（監査の記録を守るため）。管理者に依頼してください');return;}if(r.error){toast('削除できませんでした');return;}D.sc=D.sc.filter(function(s){return s.id!==d.id;});closeSmall();toast('削除しました');afterChange();return;}
         if(b.dataset.ssave)await saveSched(d,!id);
       });
     },
     left:function(){var fm={pre_guidance:[['5-9','確認書（5-9号）を印刷']],life_orientation:[['5-8','確認書（5-8号）を印刷']],periodic_meeting:[['5-5','5-5号を印刷'],['5-6','5-6号を印刷']]}[d.event_type]||[];
-      return (id?'<button class="btn btn-danger" data-sdel="1">削除</button> ':'')+'<button class="btn" data-gcal="1">Googleカレンダーに追加</button>'+fm.map(function(x){return ' <button class="btn" data-pform="'+x[0]+'">'+x[1]+'</button>';}).join('');}
+      return (id&&canDel()?'<button class="btn btn-danger" data-sdel="1">削除</button> ':'')+'<button class="btn" data-gcal="1">Googleカレンダーに追加</button>'+fm.map(function(x){return ' <button class="btn" data-pform="'+x[0]+'">'+x[1]+'</button>';}).join('');}
   });
 }
 async function saveSchedMeeting(row,memo,result){

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.2 -->
+<!-- RSO_VERSION ver.20261105.3 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -37,7 +37,32 @@ button,input,select,textarea{font-family:inherit;color:var(--text)}
 .page-title{margin:0 0 2px;font-size:22px;color:var(--accent);font-weight:700}
 .page-subtitle{color:var(--muted);font-size:12px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sidebar,.main{transition:transform .2s ease,padding-left .2s ease}
+.sb-toggle{position:fixed;top:12px;left:calc(220px - 44px + env(safe-area-inset-left,0px));z-index:40;width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;font-size:17px;line-height:1;cursor:pointer;transition:left .2s ease}
+.sb-toggle:hover{background:rgba(255,255,255,.12)}
+body.sb-closed .sb-toggle{border-color:var(--line);background:#fff;color:var(--side);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+body.sb-closed .sb-toggle:hover{background:#f7fafc}
+body.sb-closed .sidebar{transform:translateX(-100%)}
+.sb-olink{margin:4px 10px 10px;padding:8px 0 10px;border-bottom:1px solid rgba(255,255,255,.14)}
+.sb-olink[hidden]{display:none!important}
+.sb-olink-t{font-size:10px;letter-spacing:.08em;color:#9fb3c8;margin:0 2px 6px}
+.nav-item.nav-olink{width:100%;margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;padding:9px 10px;border-radius:9px;background:linear-gradient(135deg,#2b6cb0,#2c5282);color:#fff;font-weight:700;border:1px solid rgba(255,255,255,.18)}
+.nav-item.nav-olink:hover{background:linear-gradient(135deg,#3182ce,#2b6cb0)}
+.nav-item.nav-olink.on{background:#fff;color:#1a365d;box-shadow:0 0 0 2px #90cdf4}
+.nav-olink .ol-mark{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.2);font-size:11px}
+.nav-olink.on .ol-mark{background:#ebf8ff;color:#2b6cb0}
+.nav-olink .ol-sub{flex-basis:100%;padding-left:28px;font-size:10.5px;font-weight:400;opacity:.85}
+body.sb-closed .main{padding-left:max(56px,calc(16px + 40px + env(safe-area-inset-left,0px)))}
+body.sb-closed .sb-toggle{left:calc(10px + env(safe-area-inset-left,0px))}
+@media print{.sb-toggle{display:none}}
 @media (max-width:820px){
+  .sb-toggle{top:10px;left:auto;right:max(10px,env(safe-area-inset-right,0px))}
+  body.sb-closed .sb-toggle{left:auto}
+  body.sb-closed .sidebar{display:none;transform:none}
+  .sb-olink{width:100%;margin:2px 0 6px;padding:0 0 6px}
+  .sb-olink-t{display:none}
+  .nav-item.nav-olink .ol-sub{display:none}
+  body.sb-closed .main{padding-left:max(16px,env(safe-area-inset-left,0px))}
   .sidebar{position:static;width:auto;padding:env(safe-area-inset-top,0px) max(8px,env(safe-area-inset-right,0px)) 8px max(8px,env(safe-area-inset-left,0px));display:flex;flex-wrap:wrap;align-items:center;gap:2px}
   .sb-logo{width:100%;padding:12px 10px 6px}
   .sb-group{display:none}
@@ -309,6 +334,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
 
 <nav class="sidebar" aria-label="メニュー">
   <div class="sb-logo">RSO<div style="font-size:11px;font-weight:600;color:var(--side-text);margin-top:2px">登録支援機関システム</div></div>
+  <div class="sb-olink" id="grp-ofusa" hidden><div class="sb-olink-t">在留資格申請</div><button class="nav-item nav-olink" id="nav-olink" data-v="olink" hidden><span class="ol-mark">O</span>O-Link<span class="ol-sub">大房への依頼・進捗</span></button></div>
   <div class="sb-group">営業</div>
   <button class="nav-item" id="nav-kpi" data-v="kpi">KPI</button>
   <button class="nav-item" id="nav-leads" data-v="leads">見込み客</button>
@@ -318,8 +344,6 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
   <button class="nav-item" id="nav-workers" data-v="workers">外国人材</button>
   <button class="nav-item" id="nav-sched" data-v="sched">支援スケジュール</button>
   <button class="nav-item" id="nav-ledger" data-v="ledger">監査帳簿</button>
-  <div class="sb-group" id="grp-ofusa" hidden>大房行政書士法人</div>
-  <button class="nav-item" id="nav-olink" data-v="olink" hidden>大房への依頼（O-Link）</button>
   <div class="sb-group">求人・人材紹介</div>
   <button class="nav-item" id="nav-jobs" data-v="jobs">求人管理</button>
   <button class="nav-item" id="nav-cands" data-v="cands">候補者管理</button>
@@ -339,12 +363,13 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
   <div class="sb-user" id="sbUser"></div>
 </nav>
 
+<button type="button" class="sb-toggle" id="sbToggle" title="メニューを閉じる" aria-label="メニューの開閉" aria-expanded="true">☰</button>
 <div class="main">
   <div class="page-header">
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.2</div>
+      <div class="ver">ver.20261105.3</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -562,9 +587,17 @@ function nextCell(l){
 }
 
 /* ---------- 画面切替 ---------- */
-var TITLES={olink:['大房への依頼（O-Link）','大房行政書士法人への申請依頼・進捗・不足書類・お知らせ（O-Link）'],audit:['操作の記録','だれが・いつ・何を追加／変更／削除したか（管理者だけ）'],account:['アカウント設定','自分の表示名・マイページの担当者との紐づけ・パスワード'],kpi:['KPI','所属機関への営業の行動量と成果を、月の目標と比べて見ます'],leads:['見込み客','求人・支援委託をもらう前の企業と、次の一手を管理します'],mypage:['マイページ','登録支援機関の基本情報。法定の帳簿（支援実施体制）と登録支援機関概要書の項目をまとめて管理します'],orgs:['登録支援機関の管理','運営用：配布する登録支援機関と、その最初の管理者を作ります'],hearing:['ヒアリング項目','所属機関との初回商談で聞く項目と、その理由'],companies:['所属機関','支援を受託している所属機関（受入れ企業）の基本情報・契約・面談記録'],workers:['外国人材','支援している特定技能外国人の在留・申請・支援の状況'],sched:['支援スケジュール','事前ガイダンスから定期面談まで、支援の予定と実施を管理します'],ledger:['監査帳簿','入管の監査で求められる帳簿を1つずつ選んで印刷・PDF保存します（運用要領 第9章）'],jobs:['求人管理','所属機関から受けた求人と、求人票・求人管理簿'],cands:['候補者管理','紹介する候補者（求職者）と、履歴書・求職管理簿'],tchat:['社内チャット','登録支援機関の中でのやり取り'],jchat:['求人チャット','求人・候補者ごとのやり取り']};
+var TITLES={olink:['O-Link','大房行政書士法人への申請依頼・進捗・不足書類・お知らせ（O-Link）'],audit:['操作の記録','だれが・いつ・何を追加／変更／削除したか（管理者だけ）'],account:['アカウント設定','自分の表示名・マイページの担当者との紐づけ・パスワード'],kpi:['KPI','所属機関への営業の行動量と成果を、月の目標と比べて見ます'],leads:['見込み客','求人・支援委託をもらう前の企業と、次の一手を管理します'],mypage:['マイページ','登録支援機関の基本情報。法定の帳簿（支援実施体制）と登録支援機関概要書の項目をまとめて管理します'],orgs:['登録支援機関の管理','運営用：配布する登録支援機関と、その最初の管理者を作ります'],hearing:['ヒアリング項目','所属機関との初回商談で聞く項目と、その理由'],companies:['所属機関','支援を受託している所属機関（受入れ企業）の基本情報・契約・面談記録'],workers:['外国人材','支援している特定技能外国人の在留・申請・支援の状況'],sched:['支援スケジュール','事前ガイダンスから定期面談まで、支援の予定と実施を管理します'],ledger:['監査帳簿','入管の監査で求められる帳簿を1つずつ選んで印刷・PDF保存します（運用要領 第9章）'],jobs:['求人管理','所属機関から受けた求人と、求人票・求人管理簿'],cands:['候補者管理','紹介する候補者（求職者）と、履歴書・求職管理簿'],tchat:['社内チャット','登録支援機関の中でのやり取り'],jchat:['求人チャット','求人・候補者ごとのやり取り']};
 var ALLV=['kpi','leads','hearing','mypage','orgs','account','audit','olink','companies','workers','sched','ledger','jobs','cands','tchat','jchat'];
+/* サイドメニューの開閉（O-Linkを開くと自動で閉じ、ほかの画面に移るともとに戻す） */
+var sbAuto=null;
+function sbSet(closed,save){document.body.classList.toggle('sb-closed',closed);var b=$('sbToggle');if(b){b.title=closed?'メニューを開く':'メニューを閉じる';b.setAttribute('aria-expanded',closed?'false':'true');}
+  if(save){try{localStorage.setItem('rso_sb_closed',closed?'1':'0');}catch(e){}}}
+(function(){var c=false;try{c=localStorage.getItem('rso_sb_closed')==='1';}catch(e){}sbSet(c,false);
+  $('sbToggle').addEventListener('click',function(){sbAuto=null;sbSet(!document.body.classList.contains('sb-closed'),true);});})();
 function setView(v){
+  if(v==='olink'){if(sbAuto===null)sbAuto=document.body.classList.contains('sb-closed');sbSet(true,false);}
+  else if(sbAuto!==null){sbSet(sbAuto,false);sbAuto=null;}
   view=v;
   if(v==='orgs'&&!(me&&me.role==='operator'))v='kpi'; view=v;
   ALLV.forEach(function(x){$('v-'+x).hidden=(x!==v);$('nav-'+x).classList.toggle('on',x===v);});
@@ -1176,7 +1209,7 @@ async function renderOlink(force){
   el.innerHTML='<div class="empty">O-Link を読み込み中…</div>';
   try{
     if(!olinkState.html||force)olinkState.html=olinkPatch(await olinkLoadHtml());
-    el.innerHTML='<div class="hint" style="margin:0 0 6px">大房行政書士法人の登録支援機関マイページ（O-Link）です。RSOのログインのまま使えます。依頼・進捗・書類はすべて大房のシステムに保存されます。</div>'+
+    el.innerHTML='<div class="hint" style="margin:0 0 6px">大房行政書士法人の登録支援機関マイページ（O-Link）です。依頼・進捗・書類は大房のシステムに保存されます。左上の ☰ でメニューを開けます。</div>'+
       '<iframe id="olinkFrame" title="O-Link" style="width:100%;height:calc(100vh - 170px);min-height:560px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>';
     $('olinkFrame').srcdoc=olinkState.html;el.dataset.built='1';
   }catch(e){el.dataset.built='';el.innerHTML='<div class="msg">'+esc(e.message)+'</div><div style="margin-top:8px"><button class="btn btn-sm" id="olRetry">もう一度読み込む</button></div>';$('olRetry').onclick=function(){renderOlink(true);};}

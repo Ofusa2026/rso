@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261104.8 -->
+<!-- RSO_VERSION ver.20261104.9 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -340,7 +340,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261104.8</div>
+      <div class="ver">ver.20261104.9</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1875,7 +1875,7 @@ function openSched(id,preset){
         if(k==='_cq'){var cs=D.co.filter(function(c){return norm(c.name).indexOf(norm(v))>=0;});if(v&&cs.length===1)d.company_id=cs[0].id;else if(v&&d.company_id&&!cs.some(function(c){return c.id===d.company_id;}))d.company_id=cs.length===1?cs[0].id:null;}
         if(k==='company_id'){d.wids=d.wids.filter(function(x){var w=byId(D.wk,x);return w&&w.company_id===v;});}
         if(k==='worker_id'){var w=byId(D.wk,v);if(w){d.company_id=w.company_id;d._cq='';}}
-        if(['event_type','_cq','_wq','company_id','worker_id','monthOnly','all_day'].indexOf(k)>=0){var f=document.activeElement&&document.activeElement.dataset.s;drawSmall();if(f==='_cq'||f==='_wq'){var x=el.querySelector('[data-s="'+f+'"]');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}}}
+        if(['event_type','event_method','_cq','_wq','company_id','worker_id','monthOnly','all_day'].indexOf(k)>=0){var f=document.activeElement&&document.activeElement.dataset.s;drawSmall();if(f==='_cq'||f==='_wq'){var x=el.querySelector('[data-s="'+f+'"]');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}}}
       });});
       el.querySelectorAll('[data-rp]').forEach(function(i){i.addEventListener(i.tagName==='SELECT'||i.type==='date'?'change':'input',function(){rpSet(d,i.dataset.rp,i.value);if(/\|(ng|chk\.)/.test(i.dataset.rp))drawSmall();});});
       el.querySelectorAll('[data-rpo]').forEach(function(x){x.addEventListener('toggle',function(){d._rpo=d._rpo||{};d._rpo[x.dataset.rpo]=x.open;});});
@@ -2565,7 +2565,7 @@ function bookBody(k){
   else if(k==='a9')cols=C.concat([R1('reason','離職の理由'),R1('candidates','転職先の候補・紹介先','16%'),R1('hellowork','ハローワーク等への同行'),content,staff,interp]);
   else if(k==='a10')cols=C.concat([method,{l:'面談した監督者',f:function(r){return rec(r.s).supervisor||(coOf(r.co)||{}).supervisor_name||'';}},
       {l:'面談の内容',f:function(r){return String((r.mt&&r.mt.memo)||r.s.notes||'').replace(MEMO_TPL.trim(),'').trim();},pre:true,w:'22%'},{l:'対応結果（法令違反等の通報を含む）',f:function(r){return (r.mt&&r.mt.result_memo)||'';},pre:true,w:'15%'},
-      {l:'録画の保存',f:function(r){return rec(r.s).recorded||'';}},staff,interp,
+      {l:'録画（オンラインの場合）',f:function(r){return recCell(r.s);},html:true},staff,interp,
       {l:'報告書（署名済み）',f:function(r){var x=rec(r.s),a=x.r55||{},b=x.r56||{};return '5-5：'+signedCell(a.signed_url,a.signed_date)+'<br>5-6：'+signedCell(b.signed_url,b.signed_date);},html:true}]);
   else if(k==='a11')cols=[Object.assign({},C[0],{l:'記録日'})].concat(C.slice(1),[R1('target','実施しなかった支援','14%'),R1('req_date','申出を受けた日'),R1('req_content','申出の内容','22%'),staff]);
   else if(k==='a4')cols=C.concat([place,method,R1('lang','使用言語'),content,staff,interp,sgn]);
@@ -2578,6 +2578,8 @@ function bookBody(k){
   if(k==='a1'||k==='a4'){var need=lvWorkers().filter(function(w){return !rows4.some(function(r){return r.w&&r.w.id===w.id;})&&!D.sc.some(function(s){return s.worker_id===w.id&&s.event_type===B.ev[0];})&&!w[B.wf[0]];});
     var nw=need.filter(function(w){return inRange(supStart(w),f,t);});if(nw.length)warn.push('支援を始めたのに'+B.t.replace('の実施記録','')+'の記録がない人材：'+nw.map(function(w){return w.name;}).join('、'));}
   if(k==='a1'||k==='a4'){var ns2=rows4.filter(function(r){return r.src!=='wk'?!okUrl(rec(r.s).signed_url):true;});if(ns2.length)warn.push('署名済みの確認書（'+(k==='a1'?'5-9号':'5-8号')+'）のURLが入っていない記録が '+ns2.length+'件あります');}
+  if(k==='a10'){var nrv=rows4.filter(function(r){return r.s.event_method==='online'&&!okUrl(rec(r.s).rec_url);}).length;if(nrv)warn.push('オンラインで実施したのに録画のURLが入っていない定期面談が '+nrv+'件あります');
+    var nmt=rows4.filter(function(r){return r.s.event_method!=='online'&&r.s.event_method!=='visit';}).length;if(nmt)warn.push('実施方法（オンライン／訪問）が入っていない定期面談が '+nmt+'件あります');}
   if(k==='a10'){var nu=rows4.filter(function(r){var x=rec(r.s);return r.src!=='sc'||!okUrl((x.r55||{}).signed_url)||!okUrl((x.r56||{}).signed_url);}).length;if(nu)warn.push('署名済みの定期面談報告書（5-5号・5-6号）のURLがそろっていない面談が '+nu+'件あります');}
   if(k==='a10'){var nm=rows4.filter(function(r){return !(r.mt&&r.mt.result_memo);}).length;if(nm)warn.push('対応結果が未記入の面談が '+nm+'件あります');}
   return {html:html,warn:warn,fix:'sched'};
@@ -2639,6 +2641,12 @@ function okUrl(u){return /^https?:\/\//i.test(String(u||'').trim());}
 function signedInput(attr,urlKey,dateKey,label,r){r=r||{};var u=r[urlKey]||'';
   return '<div class="xf"><label>'+esc(label)+'の署名日</label><input type="date" '+attr+'="'+dateKey+'" value="'+esc(r[dateKey]||'')+'"></div>'+
     '<div class="xf wide"><label>'+esc(label)+'（署名済みPDF）のドライブURL'+(okUrl(u)?' <a href="'+esc(u)+'" target="_blank" rel="noopener">開く</a>':'')+'</label><input type="url" '+attr+'="'+urlKey+'" value="'+esc(u)+'" placeholder="https://drive.google.com/..."></div>';}
+/* 定期面談の録画（オンライン実施のときは録画を残す） */
+function recInput(d){var m=d.event_method,u=(d.record||{}).rec_url||'';
+  if(m==='visit')return '<div class="xf wide"><div class="hint">訪問（対面）で実施したため、録画は不要です。</div></div>';
+  if(m!=='online')return '<div class="xf wide"><div class="hint" style="color:#b7791f">上の「実施方法」を選んでください。オンラインで実施した場合は録画を残し、ここにURLを入れます。</div></div>';
+  return '<div class="xf wide"><label>オンライン面談の録画のURL（ドライブ等）'+(okUrl(u)?' <a href="'+esc(u)+'" target="_blank" rel="noopener">開く</a>':'')+'</label><input type="url" data-r="rec_url" value="'+esc(u)+'" placeholder="https://drive.google.com/..."><div class="hint">オンラインで行った定期面談は録画を残し、帳簿と同じ期間（支援終了日から1年以上）保管します。外国人との面談・監督者との面談の両方の録画を入れてください（1つのフォルダのURLでも可）。</div></div>';}
+function recCell(s){var m=s.event_method,u=(s.record||{}).rec_url;if(m==='visit')return '対面のため不要';if(m==='online')return okUrl(u)?'<a href="'+esc(u)+'" target="_blank" rel="noopener">録画あり</a>':'<span class="lsub">録画 未登録</span>';return '<span class="lsub">実施方法 未設定</span>';}
 function signedCell(u,d){if(okUrl(u))return '<a href="'+esc(u)+'" target="_blank" rel="noopener">保管あり</a>'+(d?'<br><span class="lsub">署名 '+esc(lvDate(d))+'</span>':'');return d?'署名 '+esc(lvDate(d))+'<br><span class="lsub">URL未登録</span>':'<span class="lsub">未登録</span>';}
 /* 帳簿に載せる記録欄（支援スケジュールの「帳簿の記録」）。record(jsonb) に入れる */
 var REC_METHODS=['対面','訪問','オンライン','電話','書面・メール','SNS・チャット','その他'];
@@ -2654,7 +2662,7 @@ var REC_F={
   consult:[['ckind','区分','sel',['相談','苦情']],['ctopic','相談・苦情の内容','area'],['answer','対応した内容・結果','area'],['report','通報・相談した行政機関（ある場合）']],
   exchange:[['event','行事・交流の名称','','地域のお祭り・自治会行事 等'],['content','内容','area']],
   job_change:[['reason','離職の理由（非自発的）'],['candidates','転職先の候補・紹介先','area'],['hellowork','ハローワーク等への同行'],['content','その他の支援内容','area','推薦状の作成・求職活動の有給休暇 など']],
-  periodic_meeting:[['supervisor','面談した監督者の氏名'],['recorded','オンライン面談の録画','sel',['保存済み','対面のため不要']]],
+  periodic_meeting:[['supervisor','面談した監督者の氏名']],
   not_done:[['target','実施しなかった支援','sel',['事前ガイダンス','出入国時の送迎','住居確保・生活に必要な契約','生活オリエンテーション','関係機関への同行','日本語学習の機会','相談・苦情','交流促進','転職支援','定期面談','その他']],['req_date','申出を受けた日','date'],['req_content','申出の内容','area','例：本人から「自分で手続きできるので同行不要」との申出']]
 };
 function recFields(d){
@@ -2671,6 +2679,7 @@ function recFields(d){
       (per?'':'<div class="xf"><label>実施方法</label><select data-r="method">'+optHtml(REC_METHODS,d.record.method||'','（選択）')+'</select></div>')+
       '<div class="xf"><label>通訳者（いる場合）</label><input type="text" data-s="interpreter" value="'+esc(d.interpreter||'')+'"></div>')+
     fl.map(one).join('')+
+    (per?recInput(d):'')+
     (t==='pre_guidance'||t==='life_orientation'?signedInput('data-r','signed_url','signed_date',t==='pre_guidance'?'確認書（5-9号）':'確認書（5-8号）',d.record):'');
 }
 

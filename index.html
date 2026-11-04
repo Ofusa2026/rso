@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261104.5 -->
+<!-- RSO_VERSION ver.20261104.6 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -340,7 +340,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261104.5</div>
+      <div class="ver">ver.20261104.6</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -2432,7 +2432,7 @@ var BOOKS=[
   {k:'a4',no:'④-Ⅳ',t:'生活オリエンテーションの実施記録',ev:['life_orientation'],wf:['orientation_date','orientation_staff']},
   {k:'a5',no:'④-Ⅴ',t:'関係機関への同行・手続支援の記録',ev:['accompany','hospital']},
   {k:'a6',no:'④-Ⅵ',t:'日本語学習の機会の提供の記録',ev:['jp_study']},
-  {k:'a7',no:'④-Ⅶ',t:'相談・苦情への対応の記録',ev:['consult'],mt:'随時相談'},
+  {k:'a7',no:'④-Ⅶ',t:'相談・苦情への対応の記録（相談記録書）',form:'参考様式第5-4号',ev:['consult'],mt:'随時相談'},
   {k:'a8',no:'④-Ⅷ',t:'日本人との交流促進に係る支援の記録',ev:['exchange']},
   {k:'a9',no:'④-Ⅸ',t:'転職支援（非自発的離職時）の記録',ev:['job_change']},
   {k:'a10',no:'④-Ⅹ',t:'定期的な面談の記録',ev:['periodic_meeting'],mt:'定期面談'},
@@ -2545,7 +2545,14 @@ function bookBody(k){
   else if(k==='a3')cols=C.concat([R1('house_addr','住居の所在地','14%'),R1('house_kind','住居の種類'),R1('guarantor','連帯保証人・保証会社'),R1('life_contracts','生活に必要な契約の支援','16%'),content,staff,interp]);
   else if(k==='a5')cols=C.concat([{l:'同行・手続先',f:function(r){return rec(r.s).agency||(r.s.event_type==='hospital'?'医療機関':'');}},R1('procedure','手続の内容','14%'),place,content,staff,interp]);
   else if(k==='a6')cols=C.concat([R1('provider','学習の機会（教室・教材等）','16%'),method,content,staff,interp]);
-  else if(k==='a7')cols=C.concat([{l:'区分',f:function(r){return rec(r.s).ckind||(r.src==='mt'?'相談':'');}},method,{l:'相談・苦情の内容',f:function(r){return rec(r.s).ctopic||(r.mt&&r.mt.memo)||r.s.notes||'';},pre:true,w:'18%'},{l:'対応した内容・結果',f:function(r){return rec(r.s).answer||(r.mt&&r.mt.result_memo)||'';},pre:true,w:'16%'},R1('report','通報・相談した行政機関'),staff,interp]);
+  else if(k==='a7')cols=[
+      {l:'相談受理日',f:function(r){return lvDate(r.d)+(r.s.start_time?'\n'+String(r.s.start_time).slice(0,5):'');},pre:true,w:'7%'},
+      {l:'氏名',f:function(r){return (r.w||{}).name||'';},w:'10%'},{l:'性別',f:function(r){return (r.w||{}).gender||'';}},
+      {l:'国籍・地域',f:function(r){return (r.w||{}).nationality||'';}},{l:'生年月日',f:function(r){return lvDate((r.w||{}).birthdate);}},
+      {l:'在留カード番号',f:function(r){return (r.w||{}).residence_card||'';}},
+      {l:'相談内容',f:function(r){var x=rec(r.s),m=M2[r.s.event_method]||x.method||'';return ((x.ckind||m)?'【'+[x.ckind||(r.src==='mt'?'相談':''),m].filter(Boolean).join('・')+'】\n':'')+(x.ctopic||(r.mt&&r.mt.memo)||r.s.notes||'');},pre:true,w:'22%'},
+      {l:'対応結果',f:function(r){var x=rec(r.s);return (x.answer||(r.mt&&r.mt.result_memo)||'')+(x.report?'\n（通報・相談先：'+x.report+'）':'');},pre:true,w:'20%'},
+      {l:'対応者の氏名',f:function(r){return staffStr(r.s)+(r.s.interpreter?'\n（通訳：'+r.s.interpreter+'）':'');},pre:true}];
   else if(k==='a9')cols=C.concat([R1('reason','離職の理由'),R1('candidates','転職先の候補・紹介先','16%'),R1('hellowork','ハローワーク等への同行'),content,staff,interp]);
   else if(k==='a10')cols=C.concat([method,{l:'面談した監督者',f:function(r){return rec(r.s).supervisor||(coOf(r.co)||{}).supervisor_name||'';}},
       {l:'面談の内容',f:function(r){return String((r.mt&&r.mt.memo)||r.s.notes||'').replace(MEMO_TPL.trim(),'').trim();},pre:true,w:'22%'},{l:'対応結果（法令違反等の通報を含む）',f:function(r){return (r.mt&&r.mt.result_memo)||'';},pre:true,w:'15%'},
@@ -2563,7 +2570,7 @@ function bookBody(k){
   return {html:html,warn:warn,fix:'sched'};
 }
 function bookHead(B){var o=R.org()||{},pf=o.profile||{};
-  return '<div class="lhead"><div class="ltitle">'+esc((B.no?B.no+' ':'')+B.t)+'</div><div class="lmeta"><div>登録支援機関：'+esc(pf.corp_name||o.name||'')+(pf.reg_no?'（登録番号 '+esc(pf.reg_no)+'）':'')+'</div>'+
+  return '<div class="lhead"><div class="ltitle">'+(B.form?'<div style="font-size:10.5px;font-weight:400">'+esc(B.form)+'</div>':'')+esc((B.no?B.no+' ':'')+B.t)+'</div><div class="lmeta"><div>登録支援機関：'+esc(pf.corp_name||o.name||'')+(pf.reg_no?'（登録番号 '+esc(pf.reg_no)+'）':'')+'</div>'+
     '<div>対象：これまでのすべての記録'+(VL.co?'　所属機関：'+esc(coName(VL.co)):'')+(VL.wk?'　対象者：'+esc((byId(D.wk,VL.wk)||{}).name||''):'')+'</div><div>作成日：'+esc(lvDate(today()))+'</div></div></div>';}
 var LCSS='.lhead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:2px solid #1a365d;padding-bottom:6px;margin-bottom:8px}.ltitle{font-size:17px;font-weight:700}.lmeta{font-size:10.5px;color:#444;text-align:right;line-height:1.6}'+
   '.lbook h3{font-size:12px;background:#1a365d;color:#fff;padding:3px 8px;margin:12px 0 0}.ltbl,.lkv{width:100%;border-collapse:collapse;font-size:10.5px}.ltbl th,.ltbl td,.lkv th,.lkv td{border:1px solid #9aa4b2;padding:4px 5px;vertical-align:top;text-align:left}'+

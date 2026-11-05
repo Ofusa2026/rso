@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.15 -->
+<!-- RSO_VERSION ver.20261105.16 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -401,7 +401,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.15</div>
+      <div class="ver">ver.20261105.16</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1064,7 +1064,7 @@ var PROFILE_SECS=[
     {k:'corp_addr',l:'住所（本店所在地）',todoke:true,wide:true},
     {k:'tel',l:'代表電話'},{k:'email',l:'代表メール'},{k:'url',l:'ホームページ',wide:true}]},
   {t:'登録',law:'登録の有効期間は5年', f:[
-    {k:'reg_no',l:'登録番号'},{k:'reg_office',l:'登録した地方出入国在留管理局'},
+    {k:'reg_no',l:'登録番号'},{k:'reg_cert',l:'登録通知書の保管（保管場所・スキャンのURL）',wide:true},{k:'reg_office',l:'登録した地方出入国在留管理局'},
     {k:'reg_date',l:'登録年月日',type:'date'},{k:'reg_expiry',l:'有効期限',type:'date',hint:'空欄なら登録年月日から5年で計算'},
     {k:'shokai_no',l:'有料職業紹介 許可番号（ある場合）'},{k:'shokai_expiry',l:'職業紹介 許可の有効期限',type:'date'}]},
   {t:'職員数',law:'概要書', f:[
@@ -1078,9 +1078,9 @@ var PROFILE_SECS=[
 var PROFILE_ROWS=[
   {k:'offices',t:'支援業務を行う事務所',law:'変更したら14日以内に届出',todoke:true,cols:[{k:'name',l:'事務所名'},{k:'addr',l:'所在地'},{k:'tel',l:'電話'}]},
   {k:'officers',t:'役員',law:'概要書：役員の氏名・役職・住所',cols:[{k:'name',l:'氏名'},{k:'title',l:'役職'},{k:'addr',l:'住所'}]},
-  {k:'staff',t:'支援責任者・支援担当者',law:'帳簿：支援担当者の氏名・役職',cols:[{k:'kind',l:'区分',sel:['支援責任者','支援担当者']},{k:'name',l:'氏名'},{k:'name_en',l:'氏名（ローマ字）'},{k:'title',l:'役職'},{k:'office',l:'所属事務所'},{k:'appointed',l:'選任日',type:'date'}]},
+  {k:'staff',t:'支援責任者・支援担当者',law:'帳簿：支援担当者の氏名・役職',cols:[{k:'kind',l:'区分',sel:['支援責任者','支援担当者']},{k:'name',l:'氏名'},{k:'name_en',l:'氏名（ローマ字）'},{k:'title',l:'役職'},{k:'office',l:'所属事務所'},{k:'appointed',l:'選任日',type:'date'},{k:'addr',l:'住所'},{k:'career',l:'経歴（要約）'},{k:'resume_url',l:'履歴書のURL',type:'url'},{k:'accept_url',l:'就任承諾書のURL',type:'url'}]},
   {k:'employees',t:'支援担当者にならない従業員',law:'パート・事務員など。担当者の選択肢に出ます（届出・帳簿には載りません）',cols:[{k:'name',l:'氏名'},{k:'title',l:'役職・担当業務'},{k:'office',l:'所属事務所'},{k:'emp',l:'雇用形態',sel:['常勤','パート・アルバイト','派遣','その他']}]},
-  {k:'langs',t:'対応可能言語・通訳者',law:'変更したら14日以内に届出',todoke:true,cols:[{k:'lang',l:'言語'},{k:'name',l:'通訳者の氏名'},{k:'emp',l:'常勤・非常勤・委託',sel:['常勤','非常勤','委託']}]}
+  {k:'langs',t:'対応可能言語・通訳者',law:'変更したら14日以内に届出',todoke:true,cols:[{k:'lang',l:'言語'},{k:'name',l:'通訳者の氏名'},{k:'emp',l:'常勤・非常勤・委託',sel:['常勤','非常勤','委託']},{k:'contract_url',l:'委託契約書・通訳人名簿のURL',type:'url',nt:true}]}
 ];
 var mpDraft=null, mpMembers=[], mpMsg='', mpShown=false;
 function canEditOrg(){return me&&(me.role==='admin'||me.role==='operator');}
@@ -1140,17 +1140,18 @@ async function renderMypage(){
   if($('nuAdd'))$('nuAdd').onclick=addMember;
   bindMembers(box);
 }
+function ntStrip(R,arr){var nt=R.cols.filter(function(c){return c.nt;}).map(function(c){return c.k;});return (arr||[]).map(function(r){var o=Object.assign({},r);nt.forEach(function(k){delete o[k];});return o;});}
 function todokeDiff(before,after){
   var out=[],sh=function(v){if(Array.isArray(v))return v.map(function(r){return Object.keys(r).map(function(k){return r[k];}).filter(Boolean).join(' ');}).filter(Boolean).join(' ／ ');return String(v==null?'':v);};
   PROFILE_SECS.forEach(function(S){S.f.forEach(function(f){if(f.todoke&&String(before[f.k]||'')!==String(after[f.k]||''))out.push({l:f.l,old:sh(before[f.k]),nw:sh(after[f.k])});});});
-  PROFILE_ROWS.forEach(function(R){if(R.todoke&&JSON.stringify(before[R.k]||[])!==JSON.stringify(after[R.k]||[]))out.push({l:R.t,old:sh(before[R.k]),nw:sh(after[R.k]),oldRaw:JSON.parse(JSON.stringify(before[R.k]||[])),nwRaw:JSON.parse(JSON.stringify(after[R.k]||[]))});});
+  PROFILE_ROWS.forEach(function(R){if(R.todoke&&JSON.stringify(ntStrip(R,before[R.k]))!==JSON.stringify(ntStrip(R,after[R.k])))out.push({l:R.t,old:sh(ntStrip(R,before[R.k])),nw:sh(ntStrip(R,after[R.k])),oldRaw:JSON.parse(JSON.stringify(before[R.k]||[])),nwRaw:JSON.parse(JSON.stringify(after[R.k]||[]))});});
   return out;
 }
 function staffNameList(p){return (p.staff||[]).map(function(x){return String(x.name||'').trim();}).filter(Boolean);}
 function todokeChanges(before,after){
   var out=[];
   PROFILE_SECS.forEach(function(S){S.f.forEach(function(f){if(f.todoke&&String(before[f.k]||'')!==String(after[f.k]||''))out.push(f.l);});});
-  PROFILE_ROWS.forEach(function(R){if(R.todoke&&JSON.stringify(before[R.k]||[])!==JSON.stringify(after[R.k]||[]))out.push(R.t);});
+  PROFILE_ROWS.forEach(function(R){if(R.todoke&&JSON.stringify(ntStrip(R,before[R.k]))!==JSON.stringify(ntStrip(R,after[R.k])))out.push(R.t);});
   return out;
 }
 function mpAuto(){if(!canEditOrg()||!mpDraft)return;autoSave(function(){return saveMypage();});}
@@ -2942,7 +2943,7 @@ function wkInPeriod(w,f,t){if(!isSupported(w))return false;var s=supStart(w),e=s
 function lvWorkers(){return D.wk.filter(function(w){if(VL.co&&w.company_id!==VL.co)return false;if(VL.wk&&w.id!==VL.wk)return false;return wkInPeriod(w,VL.from,VL.to);});}
 function wkCell(w){w=w||{};return '<b>'+esc(w.name||'—')+'</b>'+(w.nationality?'<br><span class="lsub">'+esc(w.nationality)+'</span>':'');}
 function coName(id){var c=coOf(id);return c?c.name:'';}
-function staffStr(s){return (s.staff_names||[]).join('、');}
+function staffStr(s){return (s.staff_names||[]).map(function(n){var t=(staffInfo(n)||{}).title;return t?n+'（'+t+'）':n;}).join('、');}
 function rec(s){return s.record||{};}
 function tbl(cols,rows,empty){
   if(!rows.length)return '<div class="lempty">'+esc(empty||'記録はありません')+'</div>';
@@ -2959,11 +2960,11 @@ function bookBody(k){
   var B=BOOK_BY[k],warn=[],html='',pf=(R.org()||{}).profile||{},f=VL.from,t=VL.to;
   if(k==='b1'){
     html+='<h3>1. 登録支援機関の情報</h3>'+kv([['名称',pf.corp_name||(R.org()||{}).name],['法人番号',pf.corp_no],['代表者',[pf.rep_title,pf.rep_name].filter(Boolean).join('　')],['住所（本店所在地）',pf.corp_addr],['電話番号',pf.tel],
-      ['登録番号',pf.reg_no],['登録年月日',lvDate(pf.reg_date)],['登録した地方出入国在留管理局',pf.reg_office],['職員数',(pf.staff_full!=null&&pf.staff_full!==''?'常勤 '+pf.staff_full+'人':'')+(pf.staff_part!=null&&pf.staff_part!==''?'　非常勤 '+pf.staff_part+'人':'')+(pf.staff_asof?'（'+lvDate(pf.staff_asof)+'時点）':'')]]);
+      ['登録番号',pf.reg_no],['登録通知書の保管',pf.reg_cert],['登録年月日',lvDate(pf.reg_date)],['登録した地方出入国在留管理局',pf.reg_office],['職員数',(pf.staff_full!=null&&pf.staff_full!==''?'常勤 '+pf.staff_full+'人':'')+(pf.staff_part!=null&&pf.staff_part!==''?'　非常勤 '+pf.staff_part+'人':'')+(pf.staff_asof?'（'+lvDate(pf.staff_asof)+'時点）':'')]]);
     html+='<h3>2. 役員</h3>'+tbl([{l:'氏名',f:function(r){return r.name;}},{l:'役職',f:function(r){return r.title;}},{l:'住所',f:function(r){return r.addr;}}],pf.officers||[],'マイページに役員が登録されていません');
     html+='<h3>3. 支援業務を行う事務所</h3>'+tbl([{l:'事務所名',f:function(r){return r.name;}},{l:'所在地',f:function(r){return r.addr;}},{l:'電話',f:function(r){return r.tel;}}],pf.offices||[],'マイページに事務所が登録されていません');
-    html+='<h3>4. 支援責任者・支援担当者</h3>'+tbl([{l:'区分',f:function(r){return r.kind;}},{l:'氏名',f:function(r){return r.name+(r.name_en?'（'+r.name_en+'）':'');}},{l:'役職',f:function(r){return r.title;}},{l:'所属事務所',f:function(r){return r.office;}},{l:'選任日',f:function(r){return lvDate(r.appointed);}}],pf.staff||[],'マイページに支援責任者・支援担当者が登録されていません');
-    html+='<h3>5. 対応可能言語・通訳者</h3>'+tbl([{l:'言語',f:function(r){return r.lang;}},{l:'通訳者の氏名',f:function(r){return r.name;}},{l:'雇用形態',f:function(r){return r.emp;}}],pf.langs||[],'マイページに対応言語が登録されていません');
+    html+='<h3>4. 支援責任者・支援担当者</h3>'+tbl([{l:'区分',f:function(r){return r.kind;}},{l:'氏名',f:function(r){return r.name+(r.name_en?'（'+r.name_en+'）':'');}},{l:'役職',f:function(r){return r.title;}},{l:'所属事務所',f:function(r){return r.office;}},{l:'選任日',f:function(r){return lvDate(r.appointed);}},{l:'住所',f:function(r){return r.addr;}},{l:'経歴',f:function(r){return r.career;},pre:true},{l:'履歴書・就任承諾書',f:function(r){return '履歴書：'+(okUrl(r.resume_url)?'<a href="'+esc(r.resume_url)+'" target="_blank" rel="noopener">保管あり</a>':'<span class="lsub">未登録</span>')+'<br>就任承諾書：'+(okUrl(r.accept_url)?'<a href="'+esc(r.accept_url)+'" target="_blank" rel="noopener">保管あり</a>':'<span class="lsub">未登録</span>');},html:true}],pf.staff||[],'マイページに支援責任者・支援担当者が登録されていません');
+    html+='<h3>5. 対応可能言語・通訳者</h3>'+tbl([{l:'言語',f:function(r){return r.lang;}},{l:'通訳者の氏名',f:function(r){return r.name;}},{l:'雇用形態',f:function(r){return r.emp;}},{l:'委託契約書・通訳人名簿',f:function(r){return okUrl(r.contract_url)?'<a href="'+esc(r.contract_url)+'" target="_blank" rel="noopener">保管あり</a>':'<span class="lsub">未登録</span>';},html:true}],pf.langs||[],'マイページに対応言語が登録されていません');
     html+='<h3>6. 相談に応じる体制</h3>'+kv([['相談に応じる曜日・時間帯',pf.support_hours],['相談の方法',pf.support_methods],['緊急時の連絡体制',pf.emergency]]);
     var ws=D.wk.filter(isSupported),st0=ws.map(supStart).filter(Boolean).sort()[0]||today(),rows=monthsOf(st0,today()).map(function(ym){var a=ym+'-01',b=lastDay(ym);
       var act=ws.filter(function(w){return wkInPeriod(w,a,b);});
@@ -2974,6 +2975,9 @@ function bookBody(k){
     html+='<h3>7. 毎月の支援の状況</h3>'+tbl([{l:'年月',f:function(r){return r.ym.replace('-','年')+'月';}},{l:'支援対象者数',f:function(r){return r.n+'人';}},{l:'うち支援開始',f:function(r){return r.st+'人';}},{l:'うち支援終了',f:function(r){return r.en+'人';}},{l:'行方不明者数',f:function(r){return r.lost+'人';}},{l:'支援している所属機関数',f:function(r){return r.co+'社';}}],rows,'支援している人材がいません');
     if(!pf.reg_no)warn.push({h:'マイページに登録番号がありません　'+lgLink('mp','登録','→ マイページで入力する')});
     if(!(pf.staff||[]).length)warn.push({h:'マイページに支援責任者・支援担当者がありません　'+lgLink('mp','支援責任者・支援担当者','→ マイページで入力する')});
+    if(!pf.reg_cert)warn.push({h:'登録通知書の保管場所が入っていません（廃止時は返納、休止中は保管が必要です）　'+lgLink('mp','登録','→ マイページで入力する')});
+    var nsd=(pf.staff||[]).filter(function(r){return !r.addr||!r.career||!okUrl(r.resume_url)||!okUrl(r.accept_url);});if(nsd.length)warn.push({h:'支援責任者・支援担当者の住所・経歴・履歴書・就任承諾書がそろっていない人：'+nsd.map(function(r){return r.name;}).join('、')+'　'+lgLink('mp','支援責任者・支援担当者','→ マイページで入力する')});
+    var nlc=(pf.langs||[]).filter(function(r){return !okUrl(r.contract_url);});if(nlc.length)warn.push({h:'委託契約書・通訳人名簿のURLが入っていない対応言語：'+nlc.map(function(r){return r.lang;}).join('、')+'　'+lgLink('mp','対応可能言語・通訳者','→ マイページで入力する')});
     if(!(pf.officers||[]).length)warn.push({h:'マイページに役員がありません　'+lgLink('mp','役員','→ マイページで入力する')});
     if(!pf.corp_no||!pf.rep_name||!pf.corp_addr)warn.push({h:'マイページの法人の基本情報（法人番号・代表者・住所）に空欄があります　'+lgLink('mp','法人の基本情報','→ マイページで入力する')});
     if(!(pf.offices||[]).length)warn.push({h:'マイページに支援業務を行う事務所がありません　'+lgLink('mp','支援業務を行う事務所','→ マイページで入力する')});
@@ -3043,7 +3047,7 @@ function bookBody(k){
   var sgn={l:'確認書（署名済み）',f:function(r){var x=rec(r.s);return signedCell(x.signed_url,x.signed_date);},html:true};
   if(k==='a1')cols=C.concat([place,method,R1('lang','使用言語'),content,staff,interp,sgn]);
   else if(k==='a2')cols=C.concat([{l:'区分',f:function(r){return r.s.event_type==='entry'?'入国（出迎え）':'出国（見送り）';}},R1('airport','空港・港'),R1('transport','送迎の方法'),content,staff,interp]);
-  else if(k==='a3')cols=C.concat([R1('house_addr','住居の所在地','14%'),R1('house_kind','住居の種類'),R1('guarantor','連帯保証人・保証会社'),R1('life_contracts','生活に必要な契約の支援','16%'),content,staff,interp]);
+  else if(k==='a3')cols=C.concat([R1('house_addr','住居の所在地','14%'),R1('house_kind','住居の種類'),R1('rent','家賃（月額）'),R1('guarantor','連帯保証人・保証会社'),R1('life_contracts','生活に必要な契約の支援','16%'),content,staff,interp]);
   else if(k==='a5')cols=C.concat([{l:'同行・手続先',f:function(r){return rec(r.s).agency||(r.s.event_type==='hospital'?'医療機関':'');}},R1('procedure','手続の内容','14%'),place,content,staff,interp]);
   else if(k==='a6')cols=C.concat([R1('provider','学習の機会（教室・教材等）','16%'),method,content,staff,interp]);
   else if(k==='a7')cols=[
@@ -3054,10 +3058,10 @@ function bookBody(k){
       {l:'相談内容',f:function(r){var x=rec(r.s),m=M2[r.s.event_method]||x.method||'';return ((x.ckind||m)?'【'+[x.ckind||(r.src==='mt'?'相談':''),m].filter(Boolean).join('・')+'】\n':'')+(x.ctopic||(r.mt&&r.mt.memo)||r.s.notes||'');},pre:true,w:'22%'},
       {l:'対応結果',f:function(r){var x=rec(r.s);return (x.answer||(r.mt&&r.mt.result_memo)||'')+(x.report?'\n（通報・相談先：'+x.report+'）':'');},pre:true,w:'20%'},
       {l:'対応者の氏名',f:function(r){return staffStr(r.s)+(r.s.interpreter?'\n（通訳：'+r.s.interpreter+'）':'');},pre:true}];
-  else if(k==='a9')cols=C.concat([R1('reason','離職の理由'),R1('candidates','転職先の候補・紹介先','16%'),R1('hellowork','ハローワーク等への同行'),content,staff,interp]);
+  else if(k==='a9')cols=C.concat([R1('reason','離職の理由'),place,R1('hours','実施時間（時間）'),R1('candidates','転職先の候補・紹介先','14%'),R1('cand_addr','転職先候補の所在地','12%'),R1('cand_tel','転職先候補の連絡先'),R1('hellowork','ハローワーク等への同行'),content,staff,interp]);
   else if(k==='a10')cols=C.concat([method,{l:'面談した監督者',f:function(r){return rec(r.s).supervisor||(coOf(r.co)||{}).supervisor_name||'';}},
       {l:'面談の内容',f:function(r){return String((r.mt&&r.mt.memo)||r.s.notes||'').replace(MEMO_TPL.trim(),'').trim();},pre:true,w:'22%'},{l:'対応結果（法令違反等の通報を含む）',f:function(r){return (r.mt&&r.mt.result_memo)||'';},pre:true,w:'15%'},
-      {l:'録画（オンラインの場合）',f:function(r){return recCell(r.s);},html:true},staff,interp,
+      {l:'録画（オンラインの場合）',f:function(r){return recCell(r.s);},html:true},{l:'オンライン同意書面',f:function(r){var m=r.s.event_method,u=rec(r.s).consent_url;if(m==='visit')return '対面のため不要';if(m==='online')return okUrl(u)?'<a href="'+esc(u)+'" target="_blank" rel="noopener">保管あり</a>':'<span class="lsub">未登録</span>';return '<span class="lsub">実施方法 未設定</span>';},html:true},staff,interp,
       {l:'報告書（署名済み）',f:function(r){var x=rec(r.s),a=x.r55||{},b=x.r56||{};return '5-5：'+signedCell(a.signed_url,a.signed_date)+'<br>5-6：'+signedCell(b.signed_url,b.signed_date);},html:true}]);
   else if(k==='a11')cols=[Object.assign({},C[0],{l:'記録日'})].concat(C.slice(1),[R1('target','実施しなかった支援','14%'),R1('req_date','申出を受けた日'),R1('req_content','申出の内容','22%'),staff]);
   else if(k==='a4')cols=C.concat([place,method,R1('lang','使用言語'),content,staff,interp,sgn]);
@@ -3076,6 +3080,7 @@ function bookBody(k){
     if(lowH.length)warn.push({h:B.t.replace('の実施記録','')+'の時間が'+hmin+'時間に足りない（または時間が未入力の）人材：'+lgNames(lowH,'wk','@sched')});
     if(badM.length)warn.push({h:'実施方法が「対面・訪問・オンライン」以外になっている記録があります（電話・メールでは実施したことになりません）：'+lgNames(badM.filter(function(x){return x.id;}),'wk','@sched')});}
   if(k==='a10'){var nrv=rows4.filter(function(r){return r.s.event_method==='online'&&!okUrl(rec(r.s).rec_url);}).length;if(nrv)warn.push('オンラインで実施したのに録画のURLが入っていない定期面談が '+nrv+'件あります');
+    var ncs=rows4.filter(function(r){return r.s.event_method==='online'&&!okUrl(rec(r.s).consent_url);}).length;if(ncs)warn.push('オンラインで実施したのに同意を確認した書面のURLが入っていない定期面談が '+ncs+'件あります');
     var nmt=rows4.filter(function(r){return r.s.event_method!=='online'&&r.s.event_method!=='visit';}).length;if(nmt)warn.push('実施方法（オンライン／訪問）が入っていない定期面談が '+nmt+'件あります');}
   if(k==='a10'){var nu=rows4.filter(function(r){var x=rec(r.s);return r.src!=='sc'||!okUrl((x.r55||{}).signed_url)||!okUrl((x.r56||{}).signed_url);}).length;if(nu)warn.push('署名済みの定期面談報告書（5-5号・5-6号）のURLがそろっていない面談が '+nu+'件あります');}
   if(k==='a10'){var nm=rows4.filter(function(r){return !(r.mt&&r.mt.result_memo);}).length;if(nm)warn.push('対応結果が未記入の面談が '+nm+'件あります');}
@@ -3147,10 +3152,11 @@ function signedInput(attr,urlKey,dateKey,label,r){r=r||{};var u=r[urlKey]||'';
   return '<div class="xf"><label>'+esc(label)+'の署名日</label><input type="date" '+attr+'="'+dateKey+'" value="'+esc(r[dateKey]||'')+'"></div>'+
     '<div class="xf wide"><label>'+esc(label)+'（署名済みPDF）のドライブURL'+(okUrl(u)?' <a href="'+esc(u)+'" target="_blank" rel="noopener">開く</a>':'')+'</label><input type="url" '+attr+'="'+urlKey+'" value="'+esc(u)+'" placeholder="https://drive.google.com/..."></div>';}
 /* 定期面談の録画（オンライン実施のときは録画を残す） */
-function recInput(d){var m=d.event_method,u=(d.record||{}).rec_url||'';
+function recInput(d){var m=d.event_method,u=(d.record||{}).rec_url||'',cu=(d.record||{}).consent_url||'';
   if(m==='visit')return '<div class="xf wide"><div class="hint">訪問（対面）で実施したため、録画は不要です。</div></div>';
   if(m!=='online')return '<div class="xf wide"><div class="hint" style="color:#b7791f">上の「実施方法」を選んでください。オンラインで実施した場合は録画を残し、ここにURLを入れます。</div></div>';
-  return '<div class="xf wide"><label>オンライン面談の録画のURL（ドライブ等）'+(okUrl(u)?' <a href="'+esc(u)+'" target="_blank" rel="noopener">開く</a>':'')+'</label><input type="url" data-r="rec_url" value="'+esc(u)+'" placeholder="https://drive.google.com/..."><div class="hint">オンラインで行った定期面談は録画を残し、帳簿と同じ期間（支援終了日から1年以上）保管します。外国人との面談・監督者との面談の両方の録画を入れてください（1つのフォルダのURLでも可）。</div></div>';}
+  return '<div class="xf wide"><label>オンライン面談の録画のURL（ドライブ等）'+(okUrl(u)?' <a href="'+esc(u)+'" target="_blank" rel="noopener">開く</a>':'')+'</label><input type="url" data-r="rec_url" value="'+esc(u)+'" placeholder="https://drive.google.com/..."><div class="hint">オンラインで行った定期面談は録画を残し、帳簿と同じ期間（支援終了日から1年以上）保管します。外国人との面談・監督者との面談の両方の録画を入れてください（1つのフォルダのURLでも可）。</div></div>'+
+    '<div class="xf wide"><label>オンライン面談に同意を確認した書面のURL'+(okUrl(cu)?' <a href="'+esc(cu)+'" target="_blank" rel="noopener">開く</a>':'')+'</label><input type="url" data-r="consent_url" value="'+esc(cu)+'" placeholder="https://drive.google.com/..."><div class="hint">オンライン面談について、外国人・監督者が同意したことを確認した書面（同意書・署名など）を保存し、そのURLを入れます。</div></div>';}
 function recCell(s){var m=s.event_method,u=(s.record||{}).rec_url;if(m==='visit')return '対面のため不要';if(m==='online')return okUrl(u)?'<a href="'+esc(u)+'" target="_blank" rel="noopener">録画あり</a>':'<span class="lsub">録画 未登録</span>';return '<span class="lsub">実施方法 未設定</span>';}
 function signedCell(u,d){if(okUrl(u))return '<a href="'+esc(u)+'" target="_blank" rel="noopener">保管あり</a>'+(d?'<br><span class="lsub">署名 '+esc(lvDate(d))+'</span>':'');return d?'署名 '+esc(lvDate(d))+'<br><span class="lsub">URL未登録</span>':'<span class="lsub">未登録</span>';}
 /* 帳簿に載せる記録欄（支援スケジュールの「帳簿の記録」）。record(jsonb) に入れる */
@@ -3165,14 +3171,14 @@ var REC_F={
   pre_guidance:[['hours','実施時間（時間）　3時間以上','num','例：3 ／ 3.5'],['lang','使用言語'],['content','説明した内容','area','雇用契約の内容・報酬・業務内容・入国手続・保証金や違約金の有無・費用負担 など']],
   entry:[['airport','空港・港'],['transport','送迎の方法','','社用車で事業所・住居まで 等'],['content','内容・メモ','area']],
   final_return:[['airport','空港・港'],['transport','送迎の方法'],['content','内容・メモ','area','保安検査場まで同行 等']],
-  housing:[['house_addr','住居の所在地'],['house_kind','住居の種類','sel',['社宅・寮（会社が用意）','賃貸（本人契約）','賃貸（会社契約）','その他']],['guarantor','連帯保証人・保証会社'],['life_contracts','生活に必要な契約の支援','area','銀行口座・携帯電話・電気／ガス／水道 など'],['content','その他の支援内容','area']],
+  housing:[['house_addr','住居の所在地'],['house_kind','住居の種類','sel',['社宅・寮（会社が用意）','賃貸（本人契約）','賃貸（会社契約）','その他']],['rent','家賃（月額）','','例：45,000円（共益費込み）'],['guarantor','連帯保証人・保証会社'],['life_contracts','生活に必要な契約の支援','area','銀行口座・携帯電話・電気／ガス／水道 など'],['content','その他の支援内容','area']],
   life_orientation:[['hours','実施時間（時間）　8時間以上（複数回なら各回の時間）','num','例：4 ／ 8'],['lang','使用言語'],['content','実施した内容','area','生活ルール・交通・公共機関・医療・防災・法令違反時の相談先 など（8時間以上）']],
   accompany:[['agency','同行・手続先','','市区町村役場・年金事務所・税務署・銀行 等'],['procedure','手続の内容','area','住民登録・社会保険・税 など'],['content','その他の内容','area']],
   hospital:[['agency','医療機関'],['content','対応した内容','area']],
   jp_study:[['provider','学習の機会','','日本語教室・オンライン講座・教材の提供 等'],['content','内容','area']],
   consult:[['ckind','区分','sel',['相談','苦情']],['ctopic','相談・苦情の内容','area'],['answer','対応した内容・結果','area'],['report','通報・相談した行政機関（ある場合）']],
   exchange:[['event','行事・交流の名称','','地域のお祭り・自治会行事 等'],['content','内容','area']],
-  job_change:[['reason','離職の理由（非自発的）'],['candidates','転職先の候補・紹介先','area'],['hellowork','ハローワーク等への同行'],['hw_date','公共職業安定所への相談日','date'],['hw_name','相談した公共職業安定所の名称'],['result','対応結果（5-12）','area'],['content','その他の支援内容','area','推薦状の作成・求職活動の有給休暇 など']],
+  job_change:[['hours','実施時間（時間）','num','例：1 ／ 1.5'],['reason','離職の理由（非自発的）'],['candidates','転職先の候補・紹介先（企業名）','area'],['cand_addr','転職先候補の所在地','area'],['cand_tel','転職先候補の連絡先（電話・担当者）'],['hellowork','ハローワーク等への同行'],['hw_date','公共職業安定所への相談日','date'],['hw_name','相談した公共職業安定所の名称'],['result','対応結果（5-12）','area'],['content','その他の支援内容','area','推薦状の作成・求職活動の有給休暇 など']],
   periodic_meeting:[['supervisor','面談した監督者の氏名']],
   not_done:[['target','実施しなかった支援','sel',['事前ガイダンス','出入国時の送迎','住居確保・生活に必要な契約','生活オリエンテーション','関係機関への同行','日本語学習の機会','相談・苦情','交流促進','転職支援','定期面談','その他']],['req_date','申出を受けた日','date'],['req_content','申出の内容（4-3は20文字以内に切り詰め）','area','例：本人から「自分で手続きできるので同行不要」との申出'],['measure','措置内容（4-3 Aのd）','sel',['実施再開（再開見込み含む）','実施再開困難','実施再開不可能']],['measure_note','困難・不可能の理由','area']]
 };

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.17 -->
+<!-- RSO_VERSION ver.20261105.18 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -221,8 +221,11 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
 .hcols ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:13px}
 .hcols .why{font-size:12px;color:var(--muted)}
 .mp-grid .mp-empty,.mp-grid td .mp-empty{background:#fffbeb;border-color:#f6ad55}
-.mp-grid .mk{display:inline-block;margin-left:6px;padding:0 6px;border-radius:9px;font-size:10.5px;font-weight:700;vertical-align:1px}
-.mp-grid .mk.e{background:#fffaf0;color:#b7791f;border:1px solid #f6ad55}.mp-grid .mk.o{background:#f0fff4;color:#2f855a;border:1px solid #9ae6b4}
+.mk{display:inline-block;margin-left:6px;padding:0 6px;border-radius:9px;font-size:10.5px;font-weight:700;vertical-align:1px}
+.mk.e{background:#fffaf0;color:#b7791f;border:1px solid #f6ad55}.mk.o{background:#f0fff4;color:#2f855a;border:1px solid #9ae6b4}
+.xm-body .x-empty{background:#fffbeb!important;border-color:#f6ad55!important}.xm-body .ms.x-empty{border:1px solid #f6ad55;border-radius:7px;padding:4px}
+.xsc{font-size:11.5px;font-weight:700;margin-left:8px}.xsc.e{color:#b7791f}.xsc.o{color:#2f855a}
+.xsum{font-size:13px;margin:0 0 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.xsum .bar{flex:0 0 140px;height:8px;border-radius:4px;background:#edf2f7;overflow:hidden}.xsum .bar i{display:block;height:100%;background:#48bb78}
 .mp-grid .mpc{font-size:11.5px;font-weight:700;margin-left:6px}.mp-grid .mpc.e{color:#b7791f}.mp-grid .mpc.o{color:#2f855a}
 #mpSum{margin:0 0 10px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}#mpSum .bar{flex:0 0 160px;height:8px;border-radius:4px;background:#edf2f7;overflow:hidden}#mpSum .bar i{display:block;height:100%;background:#48bb78}
 .hcols.hedit{grid-template-columns:1fr;max-width:900px}
@@ -406,7 +409,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.17</div>
+      <div class="ver">ver.20261105.18</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1781,10 +1784,31 @@ function drawModal(scrollKeep){
     '<div class="xm-body">'+t.html(M.dr)+'</div>'+
     '<div class="xm-foot"><div>'+(M.del&&!M.isNew?'<button class="btn btn-danger" data-xdel="1">削除</button>':'')+(M.footLeft?M.footLeft():'')+'</div><div class="toolbar"><span class="sub">'+(M.footNote?M.footNote():'')+'</span>'+(M.save?(M.isNew?'<button class="btn" data-xclose="1">やめる</button><button class="btn btn-primary" data-xsave="1">保存する</button>':'<span class="sub">変更は自動で保存されます（Ctrl+Z で取り消し）</span><button class="btn" data-xclose="1">閉じる</button>'):'')+'</div></div>';
   if(t.after)t.after(el.querySelector('.xm-body'),M.dr);
+  xMarks();
   if(scrollKeep)el.querySelector('.xm-body').scrollTop=st;
+}
+/* 入力済み／未入力の表示（所属機関・外国人材・求人・候補者の入力画面。画面の値から数える） */
+function xMarks(){
+  var body=$('xModal')&&$('xModal').querySelector('.xm-body');if(!body)return;
+  var tot=0,fil=0;
+  body.querySelectorAll('.xsec').forEach(function(sec){var n=0,f=0;
+    sec.querySelectorAll('.xf[data-fk]').forEach(function(w){
+      var c=w.querySelector('input[data-k],select[data-k],textarea[data-k],.ms[data-k]');if(!c||c.disabled||c.type==='hidden')return;
+      var v=c.classList.contains('ms')?!!c.querySelector('input[type=checkbox]:checked'):String(c.value||'').trim()!=='';
+      n++;if(v)f++;c.classList.toggle('x-empty',!v);
+      var lb=w.querySelector('label'),mk=lb&&lb.querySelector('.mk');if(lb&&!mk){mk=document.createElement('span');lb.appendChild(mk);}
+      if(mk){mk.className='mk '+(v?'o':'e');mk.textContent=v?'✓':'未入力';mk.title=v?'入力済み':'未入力';}});
+    var t=sec.querySelector('.xsec-t'),sc=t&&t.querySelector('.xsc');
+    if(t&&n){if(!sc){sc=document.createElement('span');t.appendChild(sc);}sc.className='xsc '+(f===n?'o':'e');sc.textContent=f===n?'✓ 入力済み':'未入力 '+(n-f)+'件（'+f+'/'+n+'）';}
+    tot+=n;fil+=f;});
+  var sm=body.querySelector('.xsum');
+  if(!tot){if(sm)sm.remove();return;}
+  if(!sm){sm=document.createElement('div');sm.className='xsum';body.insertBefore(sm,body.firstChild);}
+  sm.innerHTML='<span><b>このタブ：入力済み '+fil+' / '+tot+' 項目</b>'+(tot-fil?'　<span style="color:#b7791f">未入力 '+(tot-fil)+'項目</span>':'　<span style="color:#2f855a">すべて入力済み</span>')+'</span><span class="bar"><i style="width:'+Math.round(fil/tot*100)+'%"></i></span>';
 }
 function modalHandler(e){
   modalHandler0(e);
+  xMarks();
   if(M&&M.dirty&&!M.isNew&&M.save&&!(e.type==='click'&&e.target.closest('[data-xclose],[data-xdel],[data-xtab]')))mAuto();
 }
 function mAuto(){autoSave(modalSaveSilent);}

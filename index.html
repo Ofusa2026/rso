@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.11 -->
+<!-- RSO_VERSION ver.20261105.12 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -400,7 +400,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.11</div>
+      <div class="ver">ver.20261105.12</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -666,8 +666,8 @@ function opts(list,sel,blank){return (blank!=null?'<option value="">'+esc(blank)
 function leadById(id){for(var i=0;i<leads.length;i++)if(leads[i].id===id)return leads[i];return null;}
 /* 担当者として選べる人：マイページの支援責任者・支援担当者と、支援担当者にならない従業員 */
 function orgStaff(){var pf=(myOrg&&myOrg.profile)||{},r=[],o={};(pf.staff||[]).concat(pf.employees||[]).forEach(function(x){var n=String(x.name||'').trim();if(n&&!o[n]){o[n]=1;r.push(n);}});return r;}
-function staffSel(id,cur){var o=orgStaff(),h='<option value="">（未選択）</option>'+o.map(function(n){return '<option'+(n===cur?' selected':'')+'>'+esc(n)+'</option>';}).join('');if(cur&&o.indexOf(cur)<0)h+='<option selected>'+esc(cur)+'</option>';
-  return '<select id="'+id+'">'+h+'</select>'+(o.length?'':'<div class="sub" style="font-size:11px">担当者はマイページの「支援責任者・支援担当者」「支援担当者にならない従業員」から選びます</div>');}
+function staffSel(id,cur){var o=orgStaff(),h='<option value="">（未選択）</option>'+o.map(function(n){return '<option'+(n===cur?' selected':'')+'>'+esc(n)+'</option>';}).join('');var out=cur&&o.indexOf(cur)<0;if(out)h+='<option selected value="'+esc(cur)+'">'+esc(cur)+'（マイページにいません）</option>';
+  return '<select id="'+id+'">'+h+'</select>'+(out?'<div class="sub" style="font-size:11px;color:#c53030">この名前はマイページに登録されていません。登録するか、別の担当者を選んでください</div>':'')+(o.length?'':'<div class="sub" style="font-size:11px">担当者はマイページの「支援責任者・支援担当者」「支援担当者にならない従業員」から選びます</div>');}
 function isAdminMe(){return !!(me&&(me.role==='admin'||me.role==='operator'));}
 function staffList(){var s={};leads.forEach(function(l){if(l.staff)s[l.staff]=1;});acts.forEach(function(a){if(a.staff)s[a.staff]=1;});return Object.keys(s).sort();}
 function lastAct(id){var best=null;acts.forEach(function(a){if(a.leadId===id&&a.result!=='不通'&&(!best||a.date>best.date))best=a;});return best;}

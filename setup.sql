@@ -1244,3 +1244,5 @@ alter table companies
   add column if not exists ins_labor text,
   add column if not exists ins_labor_other text,
   add column if not exists missing_1y numeric;
+alter table workers add column if not exists emp_set text;
+alter table companies alter column emp_sets set default '[]'::jsonb;

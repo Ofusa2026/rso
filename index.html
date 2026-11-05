@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.10 -->
+<!-- RSO_VERSION ver.20261105.11 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -220,6 +220,18 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
 .hcols .kcard{margin-bottom:0}
 .hcols ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:13px}
 .hcols .why{font-size:12px;color:var(--muted)}
+.hcols.hedit{grid-template-columns:1fr;max-width:900px}
+.hedit .hgh{display:flex;gap:6px;align-items:center;margin-bottom:10px}
+.hedit input,.hedit select{padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:#fff;min-width:0;font-family:inherit}
+.hedit input:focus,.hedit select:focus{outline:2px solid #bee3f8;border-color:#63b3ed}
+.hedit .hgh input{flex:1;font-size:15px;font-weight:700}
+.hedit .hit{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px;background:#fafbfd}
+.hedit .hrow{display:grid;grid-template-columns:76px minmax(0,1fr);gap:6px 10px;align-items:center;font-size:13px}
+.hedit .hrow label{font-size:12px;color:var(--muted)}
+.hedit .hrow .top{display:flex;gap:6px}.hedit .hrow .top input{flex:1}
+.hedit .ib{padding:3px 9px;min-width:0;line-height:1.2}
+.hedit .hhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;color:var(--muted)}
+.hedit .hhead .acts{display:flex;gap:4px}
 .opt{font-size:11px;color:#a0aec0}
 /* マイページ */
 .mp-alert{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
@@ -388,7 +400,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.10</div>
+      <div class="ver">ver.20261105.11</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1397,21 +1409,22 @@ var hEdit=false,hDraft=null;
 function renderHearing(){
   var el=$('hList'),ed=canEditOrg();
   if(!ed)hEdit=false;
+  el.className='hcols'+(hEdit?' hedit':'');
   var bar='<div style="grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'+(ed?(hEdit?'<button class="btn btn-sm btn-primary" id="hDone">編集を終える</button><button class="btn btn-sm" id="hReset">初期の項目に戻す</button><span class="hint" style="margin:0">変更は自動で保存されます。消した項目に入力済みの内容は、リード側のデータには残ります（画面に出なくなるだけです）。</span>':'<button class="btn btn-sm" id="hEditBtn">項目を編集する</button><span class="hint" style="margin:0">項目名・選択肢・説明の変更、項目やグループの追加・削除・並べ替えができます。</span>'):'<span class="hint" style="margin:0">項目の編集は管理者ができます。</span>')+'</div>';
   if(!hEdit){
     el.innerHTML=bar+HEARING.map(function(g,gi){return '<div class="kcard"><h3>'+(gi+1)+'. '+esc(g.g)+'</h3><ol>'+g.items.map(function(it){return '<li><b>'+esc(it.l)+'</b>'+(it.t==='sel'?' <span class="opt">（'+esc(it.o.length>6?'分野の一覧から選択':it.o.join('／'))+'、または直接記入）</span>':'')+'<span class="why">'+esc(it.why)+'</span></li>';}).join('')+'</ol></div>';}).join('');
   }else{
     if(!hDraft)hDraft=JSON.parse(JSON.stringify(HEARING));
-    var ib='style="padding:2px 8px;min-width:0"';
+    var ib='class="btn btn-sm ib"';
     el.innerHTML=bar+hDraft.map(function(g,gi){
-      return '<div class="kcard"><h3 style="gap:6px"><input type="text" data-hg="'+gi+'" value="'+esc(g.g)+'" style="flex:1;font-weight:700"><button class="btn btn-sm" '+ib+' data-hact="gup|'+gi+'" title="上へ">↑</button><button class="btn btn-sm" '+ib+' data-hact="gdn|'+gi+'" title="下へ">↓</button><button class="btn btn-sm" '+ib+' data-hact="gdel|'+gi+'" title="グループを削除">削除</button></h3>'+
+      return '<div class="kcard"><div class="hgh"><span class="sub num">'+(gi+1)+'.</span><input type="text" data-hg="'+gi+'" value="'+esc(g.g)+'" placeholder="グループ名"><button '+ib+' data-hact="gup|'+gi+'" title="上へ">↑</button><button '+ib+' data-hact="gdn|'+gi+'" title="下へ">↓</button><button '+ib+' data-hact="gdel|'+gi+'" title="このグループを削除" style="color:#c53030">グループ削除</button></div>'+
       g.items.map(function(it,ii){var k=gi+'|'+ii;
-        return '<div style="border-top:1px dashed #cbd5e0;padding:8px 0"><div style="display:flex;gap:6px;align-items:center"><input type="text" data-hf="'+k+'|l" value="'+esc(it.l)+'" placeholder="項目名" style="flex:1"><select data-hf="'+k+'|t"><option value="text"'+(it.t==='text'?' selected':'')+'>文字</option><option value="num"'+(it.t==='num'?' selected':'')+'>数字</option><option value="sel"'+(it.t==='sel'?' selected':'')+'>候補から選ぶ</option></select>'+
-        '<button class="btn btn-sm" '+ib+' data-hact="up|'+k+'">↑</button><button class="btn btn-sm" '+ib+' data-hact="dn|'+k+'">↓</button><button class="btn btn-sm" '+ib+' data-hact="del|'+k+'">削除</button></div>'+
-        (it.t==='sel'?'<input type="text" data-hf="'+k+'|o" value="'+esc((it.o||[]).join('、'))+'" placeholder="候補を「、」で区切って入力" style="width:100%;margin-top:4px">':'')+
-        '<input type="text" data-hf="'+k+'|why" value="'+esc(it.why||'')+'" placeholder="なぜ聞くか（説明）" style="width:100%;margin-top:4px"></div>';}).join('')+
-      '<div style="margin-top:6px"><button class="btn btn-sm" data-hact="add|'+gi+'">＋ 項目を追加</button></div></div>';}).join('')+
-      '<div style="grid-column:1/-1"><button class="btn btn-sm" data-hact="gadd|0">＋ グループを追加</button></div>';
+        return '<div class="hit"><div class="hhead"><span>項目 '+(ii+1)+'</span><span class="acts"><button '+ib+' data-hact="up|'+k+'" title="上へ">↑</button><button '+ib+' data-hact="dn|'+k+'" title="下へ">↓</button><button '+ib+' data-hact="del|'+k+'" style="color:#c53030">削除</button></span></div>'+
+        '<div class="hrow"><label>項目名</label><div class="top"><input type="text" data-hf="'+k+'|l" value="'+esc(it.l)+'" placeholder="例：採用したい時期"><select data-hf="'+k+'|t" title="入力のしかた"><option value="text"'+(it.t==='text'?' selected':'')+'>文字で入力</option><option value="num"'+(it.t==='num'?' selected':'')+'>数字で入力</option><option value="sel"'+(it.t==='sel'?' selected':'')+'>候補から選ぶ</option></select></div>'+
+        (it.t==='sel'?'<label>候補</label><input type="text" data-hf="'+k+'|o" value="'+esc((it.o||[]).join('、'))+'" placeholder="「、」で区切る　例：3か月以内、半年以内、未定">':'')+
+        '<label>説明</label><input type="text" data-hf="'+k+'|why" value="'+esc(it.why||'')+'" placeholder="なぜ聞くか（入力画面に小さく表示されます）"></div></div>';}).join('')+
+      '<button class="btn btn-sm" data-hact="add|'+gi+'">＋ このグループに項目を追加</button></div>';}).join('')+
+      '<div><button class="btn btn-sm" data-hact="gadd|0">＋ グループを追加</button></div>';
   }
 }
 async function saveHearing(){

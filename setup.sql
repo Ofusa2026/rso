@@ -1157,3 +1157,5 @@ alter table public.members add column if not exists disabled_by text;
 -- 【未対応】休廃止の届出（参考様式4-1／4-2）、特異事案報告書4-3・5-12・5-13・5-19・変更届出4-4の「公式様式どおり」の出力
 --   （今は転記用の下書きのみ。公式様式のファイルをもらえれば5-4〜5-10と同じ方法で作れる）
 -- =====================================================================
+alter table companies add column if not exists agreement_36_expiry date, add column if not exists council_cert_expiry date;
+alter table workers add column if not exists health_check_date date;

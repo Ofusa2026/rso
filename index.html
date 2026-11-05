@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.16 -->
+<!-- RSO_VERSION ver.20261105.17 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -220,6 +220,11 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
 .hcols .kcard{margin-bottom:0}
 .hcols ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:13px}
 .hcols .why{font-size:12px;color:var(--muted)}
+.mp-grid .mp-empty,.mp-grid td .mp-empty{background:#fffbeb;border-color:#f6ad55}
+.mp-grid .mk{display:inline-block;margin-left:6px;padding:0 6px;border-radius:9px;font-size:10.5px;font-weight:700;vertical-align:1px}
+.mp-grid .mk.e{background:#fffaf0;color:#b7791f;border:1px solid #f6ad55}.mp-grid .mk.o{background:#f0fff4;color:#2f855a;border:1px solid #9ae6b4}
+.mp-grid .mpc{font-size:11.5px;font-weight:700;margin-left:6px}.mp-grid .mpc.e{color:#b7791f}.mp-grid .mpc.o{color:#2f855a}
+#mpSum{margin:0 0 10px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}#mpSum .bar{flex:0 0 160px;height:8px;border-radius:4px;background:#edf2f7;overflow:hidden}#mpSum .bar i{display:block;height:100%;background:#48bb78}
 .hcols.hedit{grid-template-columns:1fr;max-width:900px}
 .hedit .hgh{display:flex;gap:6px;align-items:center;margin-bottom:10px}
 .hedit input,.hedit select{padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:#fff;min-width:0;font-family:inherit}
@@ -401,7 +406,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.16</div>
+      <div class="ver">ver.20261105.17</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1105,7 +1110,7 @@ async function renderMypage(){
     if(f.sel)ctl='<select id="'+id+'" data-p="'+f.k+'"'+dis+'>'+opts(f.sel,v,'選択')+'</select>';
     else if(f.area)ctl='<textarea id="'+id+'" data-p="'+f.k+'"'+dis+'>'+esc(v)+'</textarea>';
     else ctl='<input type="'+(f.type||'text')+'" id="'+id+'" data-p="'+f.k+'" value="'+esc(f.k==='reg_expiry'&&!v?'':v)+'"'+(f.k==='reg_expiry'&&!v&&exp?' placeholder="'+exp+'"':'')+dis+'>';
-    return '<label for="'+id+'">'+esc(f.l)+(f.todoke?'<span class="why">変更は14日以内に届出</span>':'')+(f.hint?'<span class="why">'+esc(f.hint)+'</span>':'')+'</label>'+(f.wide?'<div class="span3">'+ctl+'</div>':ctl);
+    return '<label for="'+id+'">'+esc(f.l)+'<span class="mk" id="mk_'+f.k+'"></span>'+(f.todoke?'<span class="why">変更は14日以内に届出</span>':'')+(f.hint?'<span class="why">'+esc(f.hint)+'</span>':'')+'</label>'+(f.wide?'<div class="span3">'+ctl+'</div>':ctl);
   }
   function rowsHtml(R){
     var list=Array.isArray(p[R.k])?p[R.k]:[];
@@ -1114,10 +1119,10 @@ async function renderMypage(){
       (list.length?list.map(function(row,i){return '<tr>'+R.cols.map(function(c){var v=row[c.k]==null?'':row[c.k],a=' data-r="'+R.k+'" data-i="'+i+'" data-c="'+c.k+'"'+(ro?' disabled':'')+' aria-label="'+esc(c.l)+'"';return '<td>'+(c.sel?'<select'+a+'>'+opts(c.sel,v,'選択')+'</select>':'<input type="'+(c.type||'text')+'" value="'+esc(v)+'"'+a+'>')+'</td>';}).join('')+(ro?'':'<td><button class="btn btn-sm btn-danger" data-del="'+R.k+'" data-i="'+i+'">削除</button></td>')+'</tr>';}).join(''):'<tr><td colspan="'+(R.cols.length+1)+'" class="sub" style="padding:12px 6px">まだありません</td></tr>')+
       '</tbody></table></div></div>';
   }
-  var html='<div class="mp-alert">'+alerts.map(function(a){return '<div class="'+a[0]+'">'+esc(a[1])+'</div>';}).join('')+'</div>'+
+  var html='<div class="mp-alert">'+alerts.map(function(a){return '<div class="'+a[0]+'">'+esc(a[1])+'</div>';}).join('')+'</div>'+(ro?'':'')+'<div id="mpSum"></div>'+
     (ro?'<div class="msg" style="background:#ebf8ff;color:#2b6cb0;border-color:#bee3f8">基本情報を変えられるのは管理者だけです。直したいところは管理者に伝えてください。</div>':'')+
     '<div class="mp-grid'+(ro?' ro':'')+'">'+
-    PROFILE_SECS.map(function(S){return '<div class="kcard'+(S.t==='職員数'?'':' wide')+'"><h3><span>'+esc(S.t)+' <span class="law">'+esc(S.law)+'</span></span></h3><div class="form">'+S.f.map(fld).join('')+'</div></div>';}).join('')+
+    PROFILE_SECS.map(function(S){return '<div class="kcard'+(S.t==='職員数'?'':' wide')+'"><h3><span>'+esc(S.t)+' <span class="law">'+esc(S.law)+'</span><span class="mpc" id="mpc_'+S.t+'"></span></span></h3><div class="form">'+S.f.map(fld).join('')+'</div></div>';}).join('')+
     PROFILE_ROWS.map(rowsHtml).join('')+
     '</div>'+
     (ro?'':'<div style="display:flex;justify-content:flex-end;gap:8px;margin:14px 0"><span class="sub" style="align-self:center">変更は自動で保存されます（Ctrl+Z で取り消し）　最終更新 '+esc((myOrg.updated_at||'').slice(0,10))+'</span></div>')+
@@ -1133,6 +1138,7 @@ async function renderMypage(){
     '</div>';
   $('mpBody').innerHTML=html; mpShown=true;
   var box=$('mpBody');
+  box.addEventListener('input',mpMarks);box.addEventListener('change',mpMarks);mpMarks();
   box.querySelectorAll('[data-p]').forEach(function(el){var h=function(){mpDraft[el.dataset.p]=el.value.trim();};el.addEventListener('input',h);el.addEventListener('change',h);el.addEventListener('input',mpAuto);el.addEventListener('change',mpAuto);});
   box.querySelectorAll('[data-r]').forEach(function(el){var h=function(){mpDraft[el.dataset.r][+el.dataset.i][el.dataset.c]=el.value.trim();};el.addEventListener('input',h);el.addEventListener('change',h);el.addEventListener('input',mpAuto);el.addEventListener('change',mpAuto);});
   box.querySelectorAll('[data-add]').forEach(function(b){b.onclick=function(){var k=b.dataset.add;if(!Array.isArray(mpDraft[k]))mpDraft[k]=[];mpDraft[k].push({});renderMypage();};});
@@ -1141,6 +1147,19 @@ async function renderMypage(){
   bindMembers(box);
 }
 function ntStrip(R,arr){var nt=R.cols.filter(function(c){return c.nt;}).map(function(c){return c.k;});return (arr||[]).map(function(r){var o=Object.assign({},r);nt.forEach(function(k){delete o[k];});return o;});}
+/* 入力済み／未入力の表示（項目ごと・セクションごと・全体） */
+function mpMarks(){
+  if(!mpDraft||!$('mpSum'))return;
+  var tot=0,fil=0,has=function(v){return String(v==null?'':v).trim()!=='';};
+  PROFILE_SECS.forEach(function(S){var n=0,f=0;
+    S.f.forEach(function(F){var v=has(mpDraft[F.k]);n++;if(v)f++;
+      var el=$('mp_'+F.k),mk=$('mk_'+F.k);if(el)el.classList.toggle('mp-empty',!v);if(mk){mk.className='mk '+(v?'o':'e');mk.textContent=v?'✓':'未入力';mk.title=v?'入力済み':'未入力';}});
+    tot+=n;fil+=f;var c=$('mpc_'+S.t);if(c){c.className='mpc '+(f===n?'o':'e');c.textContent=f===n?'✓ 入力済み':'未入力 '+(n-f)+'件（'+f+'/'+n+'）';}});
+  var rows=0;
+  PROFILE_ROWS.forEach(function(R){(Array.isArray(mpDraft[R.k])?mpDraft[R.k]:[]).forEach(function(r){R.cols.forEach(function(c){if(!has(r[c.k]))rows++;});});});
+  $('mpBody').querySelectorAll('input[data-r],select[data-r]').forEach(function(el){el.classList.toggle('mp-empty',!has(el.value));});
+  $('mpSum').innerHTML='<span><b>入力済み '+fil+' / '+tot+' 項目</b>'+(tot-fil?'　<span style="color:#b7791f">未入力 '+(tot-fil)+'項目</span>':'　<span style="color:#2f855a">すべて入力済み</span>')+'</span><span class="bar"><i style="width:'+Math.round(fil/Math.max(1,tot)*100)+'%"></i></span>'+(rows?'<span class="sub">下の表（役員・事務所・担当者など）に空欄が '+rows+'か所あります（黄色の欄）</span>':'');
+}
 function todokeDiff(before,after){
   var out=[],sh=function(v){if(Array.isArray(v))return v.map(function(r){return Object.keys(r).map(function(k){return r[k];}).filter(Boolean).join(' ');}).filter(Boolean).join(' ／ ');return String(v==null?'':v);};
   PROFILE_SECS.forEach(function(S){S.f.forEach(function(f){if(f.todoke&&String(before[f.k]||'')!==String(after[f.k]||''))out.push({l:f.l,old:sh(before[f.k]),nw:sh(after[f.k])});});});

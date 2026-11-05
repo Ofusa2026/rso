@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.7 -->
+<!-- RSO_VERSION ver.20261105.8 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -331,6 +331,8 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
 .composer textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;resize:vertical;font-family:inherit;margin-bottom:6px}
 .mbox{position:absolute;bottom:100%;left:16px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);display:flex;flex-direction:column;z-index:5;min-width:180px}.mbox button{border:none;background:none;text-align:left;padding:6px 12px;cursor:pointer;font-size:13px}.mbox button:hover{background:#ebf8ff}
 @media print{.sidebar,.page-header,.filters,.subtabs,.toolbar,.xalerts,#dbNotice{display:none!important}.main{padding:0!important}.tablewrap{box-shadow:none;overflow:visible}}
+.asv{position:fixed;right:14px;bottom:12px;z-index:9999;font-size:12px;padding:5px 12px;border-radius:14px;background:#fff;border:1px solid var(--line);box-shadow:0 2px 8px rgba(0,0,0,.12);color:#4a5568;pointer-events:none}
+.asv.ok{color:#2f855a;border-color:#9ae6b4}.asv.fail{color:#c53030;border-color:#feb2b2;background:#fff5f5;max-width:70vw}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 </head>
@@ -386,7 +388,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.7</div>
+      <div class="ver">ver.20261105.8</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -403,8 +405,8 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
       <h3><span>今月の計画と実績</span><span class="legend"><span><i></i>今日時点のペース</span><span id="kEditWrap"><button class="btn btn-sm" id="kEditBtn">目標を編集</button></span></span></h3>
       <div id="kRows"></div>
       <div id="kEditFoot" hidden style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
-        <button class="btn btn-sm" id="kCancel">やめる</button>
-        <button class="btn btn-sm btn-primary" id="kSave">目標を保存</button>
+        <span class="sub" style="align-self:center">入力すると自動で保存されます</span>
+        <button class="btn btn-sm btn-primary" id="kSave">編集を終わる</button>
       </div>
     </div>
     <div class="two">
@@ -472,6 +474,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
 </div>
 <div id="xOverlay" class="xov" hidden></div><div id="xModal" class="xm" hidden role="dialog"></div><div id="xOverlay2" class="xov2" hidden></div><div id="xSmall" class="xs" hidden role="dialog"></div>
 <div id="toast" class="toast" hidden></div>
+<div id="asv" class="asv" hidden></div>
 
 <script>
 (function(){
@@ -583,7 +586,58 @@ function today(){return ymd(new Date());}
 function addDays(s,n){var d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return ymd(d);}
 function md(s){if(!s)return '';var p=s.split('-');return Number(p[1])+'/'+Number(p[2]);}
 function fmt(n){return Number(n||0).toLocaleString('ja-JP');}
-function toast(t){var el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true;},2200);}
+function toast(t){
+  if(window.__AUTO){if(/(保存|更新|登録|記録)しました/.test(t))AS.ok=true;else{AS.fail=String(t);AS.ok=false;}return;}   /* 自動保存の最中は、ポップアップを出さず右下の表示にまとめる */
+  var el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true;},2200);}
+/* ---------- 自動保存 ----------
+   入力をやめて1.2秒たつと保存する。確認のダイアログが要る保存は自動では行わず、右下に理由を出す。
+   保存の最中に入力が続いたら、終わってからもう一度保存する。 */
+var AS={t:null,busy:false,pendingFn:null,again:null,ok:false,fail:'',hide:null};
+function asv(st,msg){var el=$('asv');if(!el)return;clearTimeout(AS.hide);
+  if(st==='idle'){el.hidden=true;return;}
+  el.className='asv'+(st==='ok'?' ok':st==='fail'?' fail':'');
+  el.textContent=st==='wait'?'入力中…（自動で保存します）':st==='saving'?'保存中…':st==='ok'?('✓ '+(msg||'自動で保存しました')):('⚠ 保存できていません：'+(msg||''));
+  el.hidden=false;if(st==='ok')AS.hide=setTimeout(function(){el.hidden=true;},2500);}
+function autoSave(fn,delay){clearTimeout(AS.t);AS.pendingFn=fn;asv('wait');AS.t=setTimeout(function(){var f=AS.pendingFn;AS.pendingFn=null;if(f)autoRun(f);},delay==null?1200:delay);}
+async function autoRun(fn){
+  if(AS.busy){AS.again=fn;return;}
+  AS.busy=true;AS.ok=false;AS.fail='';asv('saving');
+  var oc=window.confirm;window.__AUTO=true;
+  window.confirm=function(m){if(/項目が(まだ)?入っていません/.test(String(m)))return true;   /* 未入力があっても保存できるもの（注意のみ）は、そのまま保存する */
+    if(!AS.fail)AS.fail='確認が必要なため、自動では保存できません（'+String(m).split('\n')[0]+'）';return false;};
+  try{await fn();}catch(e){AS.fail=(e&&e.message)||'失敗しました';}
+  window.confirm=oc;window.__AUTO=false;AS.busy=false;
+  if(AS.again){var f2=AS.again;AS.again=null;return autoRun(f2);}
+  if(AS.fail)asv('fail',AS.fail);else if(AS.ok)asv('ok');else asv('idle');
+}
+function autoFlush(){if(!AS.pendingFn)return Promise.resolve();clearTimeout(AS.t);var f=AS.pendingFn;AS.pendingFn=null;return autoRun(f);}
+window.addEventListener('beforeunload',function(e){if(AS.pendingFn||AS.busy||AS.fail){e.preventDefault();e.returnValue='';}});
+/* ---------- 取り消し（Ctrl+Z）・やり直し（Ctrl+Shift+Z または Ctrl+Y） ----------
+   マイページと、所属機関・外国人材・求人・候補者の編集画面で、入力前の状態にもどす。
+   各画面が「いま取り消せる内容」を unProviders に登録する（先に登録したものほど優先）。 */
+var unProviders=[],UN={o:null,st:[],re:[],key:'',t:0};
+function unCtx(){for(var i=0;i<unProviders.length;i++){var c=unProviders[i]();if(c)return c;}return null;}
+function unUse(c){if(!c)return null;if(UN.o!==c.o){UN.o=c.o;UN.st=[];UN.re=[];UN.key='';UN.t=0;}return c;}
+function unBefore(e){
+  var el=e.target;if(!el||!el.closest||!el.closest('.xmodal,#xModal,#mpBody'))return;
+  var c=unUse(unCtx());if(!c)return;
+  if(e.type==='click'){var b=el.closest('button');if(!b)return;if(!Object.keys(b.dataset).some(function(k){return /^(radd|rdel|add|del|msaddbtn|licadd|cnadd|cndel)$/.test(k);}))return;}
+  else{var key=[el.dataset&&(el.dataset.k||el.dataset.p||el.dataset.r||el.dataset.rc||el.dataset.lf||el.dataset.ld||''),el.dataset&&(el.dataset.i||el.dataset.ri||''),el.id||''].join('|');
+    var now=Date.now();if(key===UN.key&&now-UN.t<2000){UN.t=now;return;}UN.key=key;UN.t=now;}
+  var j=c.get();if(UN.st[UN.st.length-1]!==j){UN.st.push(j);if(UN.st.length>100)UN.st.shift();}UN.re=[];
+}
+['input','click'].forEach(function(t){document.addEventListener(t,unBefore,true);});   /* change は input の後に必ず来るので数えない */
+function unRun(redo){
+  var ae=document.activeElement;if(ae&&ae.blur&&ae!==document.body)ae.blur();   /* 入力中の欄を確定させてから戻す（再描画のときに古い値が書き戻されないように） */
+  var c=unUse(unCtx());if(!c)return false;
+  var from=redo?UN.re:UN.st,to=redo?UN.st:UN.re;if(!from.length)return false;
+  to.push(c.get());c.set(from.pop());UN.key='';UN.t=0;asv('ok',redo?'やり直しました':'取り消しました');return true;
+}
+document.addEventListener('keydown',function(e){
+  if(!(e.ctrlKey||e.metaKey)||e.altKey)return;var k=String(e.key).toLowerCase();if(k!=='z'&&k!=='y')return;
+  if(unRun(k==='y'||e.shiftKey))e.preventDefault();
+});
+unProviders.push(function(){if(view==='mypage'&&mpDraft&&canEditOrg()&&$('xModal').hidden&&$('xSmall').hidden)return {o:'mypage',get:function(){return JSON.stringify(mpDraft);},set:function(j){mpDraft=JSON.parse(j);renderMypage();mpAuto();}};return null;});
 function opts(list,sel,blank){return (blank!=null?'<option value="">'+esc(blank)+'</option>':'')+list.map(function(o){return '<option'+(o===sel?' selected':'')+'>'+esc(o)+'</option>';}).join('');}
 function leadById(id){for(var i=0;i<leads.length;i++)if(leads[i].id===id)return leads[i];return null;}
 /* 担当者として選べる人：マイページの支援責任者・支援担当者と、支援担当者にならない従業員 */
@@ -682,14 +736,15 @@ function renderKpi(){
 $('kMonth').addEventListener('change',function(e){kMonth=e.target.value;renderKpi();});
 $('kStaff').addEventListener('change',function(e){kStaff=e.target.value;renderKpi();});
 $('kEditBtn').addEventListener('click',function(){kEditing=true;renderKpi();});
-$('kCancel').addEventListener('click',function(){kEditing=false;renderKpi();});
-$('kSave').addEventListener('click',async function(){
+async function saveKpiTargets(){
   var t={};KPIS.forEach(function(K){var v=Number(($('kt_'+K.k)||{}).value);t[K.k]=isFinite(v)&&v>=0?v:K.def;});
-  var b=$('kSave');b.disabled=true;
-  try{var now=new Date().toISOString();must(await db.from('kpi_targets').upsert([{org_id:me.org_id,key:kMonth,data:t,updated_at:now},{org_id:me.org_id,key:'default',data:t,updated_at:now}],{onConflict:'org_id,key'}));kEditing=false;toast('目標を保存しました');await loadAll();}
+  var now=new Date().toISOString();
+  try{must(await db.from('kpi_targets').upsert([{org_id:me.org_id,key:kMonth,data:t,updated_at:now},{org_id:me.org_id,key:'default',data:t,updated_at:now}],{onConflict:'org_id,key'}));toast('目標を保存しました');kStale=true;}
   catch(e){toast('保存できませんでした：'+(e&&e.message||''));}
-  b.disabled=false;renderKpi();
-});
+}
+var kStale=false;
+$('kRows').addEventListener('input',function(e){if(kEditing&&e.target.id&&e.target.id.indexOf('kt_')===0)autoSave(saveKpiTargets);});
+$('kSave').addEventListener('click',async function(){await autoFlush();kEditing=false;if(kStale){kStale=false;await loadAll();}renderKpi();});
 $('kTodo').addEventListener('click',function(e){var tr=e.target.closest('tr[data-id]');if(tr)openLead(tr.dataset.id);});
 
 /* ---------- 見込み客 ---------- */
@@ -761,7 +816,11 @@ function openLead(id){
   renderDrawer(); $('drawer').hidden=false; $('overlay').hidden=false;
   if(!id)setTimeout(function(){var f=$('d_name');if(f)f.focus();},30);
 }
-function closeDrawer(){$('drawer').hidden=true;$('overlay').hidden=true;openId=null;draft=null;aiOpen=false;}
+var leadStale=false;
+function closeDrawer(){
+  if(AS.pendingFn&&openId){autoFlush().then(closeDrawer0);return;}
+  closeDrawer0();}
+function closeDrawer0(){clearTimeout(AS.t);AS.pendingFn=null;$('drawer').hidden=true;$('overlay').hidden=true;openId=null;draft=null;aiOpen=false;if(leadStale){leadStale=false;loadAll();}}
 $('overlay').addEventListener('click',closeDrawer);
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('drawer').hidden)closeDrawer();});
 function inp(id,v,type,ph){return '<input type="'+(type||'text')+'" id="'+id+'" value="'+esc(v)+'"'+(ph?' placeholder="'+esc(ph)+'"':'')+(type==='number'?' min="0"':'')+'>';}
@@ -821,9 +880,10 @@ function renderDrawer(keepOpen){
   '<div class="sec-title">メモ</div><div class="form"><div style="grid-column:1/-1"><textarea id="d_memo">'+esc(L.memo)+'</textarea></div></div>'+
   (isNew?'':'<div class="sub" style="margin-top:8px">登録日 '+esc((L.createdAt||'').slice(0,10))+'　最終更新 '+esc((L.updatedAt||'').slice(0,10))+'</div>')+
   '</div>'+
-  '<div class="dfoot" id="dfoot">'+(isNew||!isAdminMe()?'<span></span>':'<button class="btn btn-sm btn-danger" id="dDel">削除</button>')+'<div style="display:flex;gap:8px"><button class="btn" id="dCancel">閉じる</button><button class="btn btn-primary" id="dSave">'+(isNew?'登録する':'保存する')+'</button></div></div>';
+  '<div class="dfoot" id="dfoot">'+(isNew||!isAdminMe()?'<span></span>':'<button class="btn btn-sm btn-danger" id="dDel">削除</button>')+'<div style="display:flex;gap:8px"><button class="btn" id="dCancel">閉じる</button>'+(isNew?'<button class="btn btn-primary" id="dSave">登録する</button>':'<span class="sub">変更は自動で保存されます</span>')+'</div></div>';
   var dr=$('drawer'), top=dr.scrollTop; dr.innerHTML=html; dr.scrollTop=top;
-  $('dClose').onclick=closeDrawer; $('dCancel').onclick=closeDrawer; $('dSave').onclick=saveLead;
+  $('dClose').onclick=closeDrawer; $('dCancel').onclick=closeDrawer; if($('dSave'))$('dSave').onclick=saveLead;
+  if(!dr._la){dr._la=1;var la=function(){if(openId&&draft&&!aiOpen)autoSave(saveLead);};dr.addEventListener('input',la);dr.addEventListener('change',la);}
   if($('dDel'))$('dDel').onclick=askDelete;
   if($('a_add'))$('a_add').onclick=addAct;
   dr.querySelectorAll('[data-h]').forEach(function(el){el.addEventListener('change',refresh);});
@@ -840,12 +900,12 @@ function collect(){
 async function saveLead(){
   collect(); var L=draft;
   if(!L.name){toast('会社名を入れてください');$('d_name').focus();return;}
-  var body=toLead(L), b=$('dSave'); b.disabled=true;
+  var body=toLead(L), b=$('dSave'); if(b)b.disabled=true;
   try{
-    if(openId){must(await db.from('leads').update(body).eq('id',openId));toast('保存しました');}
+    if(openId){must(await db.from('leads').update(body).eq('id',openId));toast('保存しました');if(window.__AUTO){leadStale=true;return;}}
     else{must(await db.from('leads').insert(body));toast('登録しました');}
     closeDrawer(); await loadAll();
-  }catch(e){toast('保存できませんでした：'+(e&&e.message||''));b.disabled=false;}
+  }catch(e){toast('保存できませんでした：'+(e&&e.message||''));if(b)b.disabled=false;}
 }
 function askDelete(){
   $('dfoot').innerHTML='<span class="sub" style="color:#c53030">この見込み客と活動の記録を削除します。元に戻せません。</span><div style="display:flex;gap:8px"><button class="btn" id="dNo">やめる</button><button class="btn btn-primary" id="dYes" style="background:#c53030;border-color:#c53030">削除する</button></div>';
@@ -1034,7 +1094,7 @@ async function renderMypage(){
     PROFILE_SECS.map(function(S){return '<div class="kcard'+(S.t==='職員数'?'':' wide')+'"><h3><span>'+esc(S.t)+' <span class="law">'+esc(S.law)+'</span></span></h3><div class="form">'+S.f.map(fld).join('')+'</div></div>';}).join('')+
     PROFILE_ROWS.map(rowsHtml).join('')+
     '</div>'+
-    (ro?'':'<div style="display:flex;justify-content:flex-end;gap:8px;margin:14px 0"><span class="sub" style="align-self:center">最終更新 '+esc((myOrg.updated_at||'').slice(0,10))+'</span><button class="btn" id="mpReset">元に戻す</button><button class="btn btn-primary" id="mpSave">保存する</button></div>')+
+    (ro?'':'<div style="display:flex;justify-content:flex-end;gap:8px;margin:14px 0"><span class="sub" style="align-self:center">変更は自動で保存されます（Ctrl+Z で取り消し）　最終更新 '+esc((myOrg.updated_at||'').slice(0,10))+'</span></div>')+
     '<div class="kcard"><h3><span>この登録支援機関のユーザー <span class="law">'+mpMembers.length+'人</span></span></h3>'+
     membersTable()+
     (canEditOrg()?'<div class="sec-title" style="font-size:14px">ユーザーを追加</div><div class="form">'+
@@ -1047,12 +1107,10 @@ async function renderMypage(){
     '</div>';
   $('mpBody').innerHTML=html; mpShown=true;
   var box=$('mpBody');
-  box.querySelectorAll('[data-p]').forEach(function(el){var h=function(){mpDraft[el.dataset.p]=el.value.trim();};el.addEventListener('input',h);el.addEventListener('change',h);});
-  box.querySelectorAll('[data-r]').forEach(function(el){var h=function(){mpDraft[el.dataset.r][+el.dataset.i][el.dataset.c]=el.value.trim();};el.addEventListener('input',h);el.addEventListener('change',h);});
+  box.querySelectorAll('[data-p]').forEach(function(el){var h=function(){mpDraft[el.dataset.p]=el.value.trim();};el.addEventListener('input',h);el.addEventListener('change',h);el.addEventListener('input',mpAuto);el.addEventListener('change',mpAuto);});
+  box.querySelectorAll('[data-r]').forEach(function(el){var h=function(){mpDraft[el.dataset.r][+el.dataset.i][el.dataset.c]=el.value.trim();};el.addEventListener('input',h);el.addEventListener('change',h);el.addEventListener('input',mpAuto);el.addEventListener('change',mpAuto);});
   box.querySelectorAll('[data-add]').forEach(function(b){b.onclick=function(){var k=b.dataset.add;if(!Array.isArray(mpDraft[k]))mpDraft[k]=[];mpDraft[k].push({});renderMypage();};});
-  box.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){mpDraft[b.dataset.del].splice(+b.dataset.i,1);renderMypage();};});
-  if($('mpReset'))$('mpReset').onclick=function(){mpDraft=null;mpMsg='';renderMypage();};
-  if($('mpSave'))$('mpSave').onclick=saveMypage;
+  box.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){mpDraft[b.dataset.del].splice(+b.dataset.i,1);renderMypage();mpAuto();};});
   if($('nuAdd'))$('nuAdd').onclick=addMember;
   bindMembers(box);
 }
@@ -1069,32 +1127,49 @@ function todokeChanges(before,after){
   PROFILE_ROWS.forEach(function(R){if(R.todoke&&JSON.stringify(before[R.k]||[])!==JSON.stringify(after[R.k]||[]))out.push(R.t);});
   return out;
 }
+function mpAuto(){if(!canEditOrg()||!mpDraft)return;autoSave(function(){return saveMypage();});}
+/* 同じ日に同じ項目を続けて直したときは、記録を1つにまとめる（元の値は最初のまま、新しい値だけ入れ替える） */
+function mergeTodokeLog(log,df,staffAdd,staffDel,logBy){
+  var nid=function(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);},t0=ymd(new Date());
+  if(df.length){
+    var ex=log.filter(function(l){return l.kind==='change'&&!l.filed&&l.at===t0;})[0];
+    if(!ex){log.push({id:nid(),kind:'change',at:t0,items:df,filed:'',by:logBy});}
+    else{df.forEach(function(x){var it=(ex.items||[]).filter(function(y){return y.l===x.l;})[0];if(it)it.nw=x.nw;else ex.items.push(x);});
+      ex.items=ex.items.filter(function(y){return String(y.old||'')!==String(y.nw||'');});
+      if(!ex.items.length)log.splice(log.indexOf(ex),1);}
+  }
+  /* 元に戻した項目（変更なし）は記録から外す */
+  log.slice().forEach(function(l){if(l.kind==='change'&&!l.filed&&l.at===t0&&!df.some(function(x){return (l.items||[]).some(function(y){return y.l===x.l;});})&&df.length===0){l.items=[];}});
+  for(var i=log.length-1;i>=0;i--){if(log[i].kind==='change'&&!(log[i].items||[]).length)log.splice(i,1);}
+  if(staffAdd.length||staffDel.length){
+    var es=log.filter(function(l){return l.kind==='staff'&&!l.notified&&l.at===t0;})[0];
+    if(!es){log.push({id:nid(),kind:'staff',at:t0,add:staffAdd,del:staffDel,notified:'',by:logBy});}
+    else{var A=(es.add||[]).concat(staffAdd),D2=(es.del||[]).concat(staffDel);es.add=A.filter(function(n,i,a){return a.indexOf(n)===i&&D2.indexOf(n)<0;});es.del=D2.filter(function(n,i,a){return a.indexOf(n)===i&&A.indexOf(n)<0;});
+      if(!es.add.length&&!es.del.length)log.splice(log.indexOf(es),1);}
+  }
+}
 async function saveMypage(){
-  var p=mpDraft, b=$('mpSave');
+  var p=JSON.parse(JSON.stringify(mpDraft));
   if(!String(p.corp_name||'').trim()){toast('名称を入れてください');return;}
   PROFILE_ROWS.forEach(function(R){if(Array.isArray(p[R.k]))p[R.k]=p[R.k].filter(function(r){return Object.keys(r).some(function(k){return String(r[k]||'').trim();});});});
   var before0=myOrg.profile||{}, changed=todokeChanges(before0,p);
-  p.todoke_log=Array.isArray(before0.todoke_log)?before0.todoke_log.slice():[];
+  p.todoke_log=Array.isArray(before0.todoke_log)?JSON.parse(JSON.stringify(before0.todoke_log)):[];
   /* 変更の記録（届出・期限の画面に出る）。初めて保存するときは記録しない */
+  var sb0=staffNameList(before0),sa0=staffNameList(p),add=sa0.filter(function(n){return sb0.indexOf(n)<0;}),del=sb0.filter(function(n){return sa0.indexOf(n)<0;});
   if(Object.keys(before0).length&&before0.corp_name){
     var logBy=(me&&((me.staff_name||'').trim()||(me.display_name||'').trim()))||'ユーザー';
-    var nid=function(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);};
-    var df=todokeDiff(before0,p);
-    if(df.length)p.todoke_log.push({id:nid(),kind:'change',at:ymd(new Date()),items:df,filed:'',by:logBy});
-    var sb0=staffNameList(before0),sa0=staffNameList(p),add=sa0.filter(function(n){return sb0.indexOf(n)<0;}),del=sb0.filter(function(n){return sa0.indexOf(n)<0;});
-    if(add.length||del.length)p.todoke_log.push({id:nid(),kind:'staff',at:ymd(new Date()),add:add,del:del,notified:'',by:logBy});
+    mergeTodokeLog(p.todoke_log,todokeDiff(before0,p),add,del,logBy);
   }
-  b.disabled=true;
   try{
     var r=must(await db.from('orgs').update({name:String(p.corp_name).trim(),profile:p,updated_at:new Date().toISOString()}).eq('id',myOrg.id).select('*'));
     if(!r||!r.length)throw new Error('保存する権限がありません');
-    myOrg=r[0]; mpDraft=null; mpMsg='';
+    myOrg=r[0]; mpMsg='';
     $('sbUser').textContent=(myOrg.name||'')+'　'+($('sbUser').textContent.split('　')[1]||'');
     toast('保存しました');
-    await renderMypage();
-    if(staffNameList(before0).join('|')!==staffNameList(myOrg.profile||{}).join('|')){toast('支援責任者・支援担当者を変えました。所属機関が出す「支援計画の変更届出」への連絡を「届出・期限」で確認してください');}
-    if(changed.length){var d=new Date();d.setDate(d.getDate()+14);var n=document.createElement('div');n.className='warn';n.textContent='「'+changed.join('」「')+'」を変更しました。登録支援機関の変更の届出が必要な場合があります（変更日から14日以内：'+ymd(d)+'まで）。';$('mpBody').querySelector('.mp-alert').prepend(n);}
-  }catch(e){mpMsg='保存できませんでした：'+(e&&e.message||'');b.disabled=false;renderMypage();}
+    var late=function(msg){setTimeout(function(){window.__AUTO=false;var el=$('toast');el.textContent=msg;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true;},4200);},0);};
+    if(add.length||del.length)late('支援責任者・支援担当者を変えました。所属機関が出す「支援計画の変更届出」への連絡を「届出・期限」で確認してください');
+    else if(changed.length){var d=new Date();d.setDate(d.getDate()+14);late('「'+changed.join('」「')+'」を変更しました。変更の届出が必要です（14日以内：'+ymd(d)+'まで）。「届出・期限」に記録しました');}
+  }catch(e){toast('保存できませんでした：'+(e&&e.message||''));}
 }
 async function fnError(r){
   if(r.error){try{var c=r.error.context;if(c&&typeof c.json==='function'){var j=await c.json();if(j&&j.message)return j.message;}}catch(e){}return r.error.message||'失敗しました';}
@@ -1126,7 +1201,7 @@ async function renderAccount(){
      '<div class="hint span3">自分がマイページの「支援責任者・支援担当者」「支援担当者にならない従業員」のだれかを選びます。選ぶと、支援スケジュールの担当の初期値などに自分の名前が入ります。'+(ppl.length?'':'<br><b>マイページにまだだれも登録されていません。</b>')+'</div>'+
      '<label for="ac_name">表示名</label><input type="text" id="ac_name" value="'+esc(mine.display_name||'')+'">'+
      '<div class="hint span3">チャットやユーザー一覧に出る名前です。紐づけた担当者と同じ名前にしておくと、担当欄・メンション（@）とずれません。<br><label style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin-top:4px;color:var(--text,#2d3748)"><input type="checkbox" id="ac_same" checked style="width:auto"> 紐づけた担当者の名前にそろえる</label></div>'+
-   '</div><div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn btn-primary btn-sm" id="acSave">保存する</button></div></div>'+
+   '</div><div class="hint" style="margin-top:8px">変更は自動で保存されます。</div></div>'+
    '<div class="kcard"><h3><span>パスワードの変更</span></h3><div class="form" style="grid-template-columns:200px minmax(0,1fr)">'+
      '<label for="ac_pw1">新しいパスワード</label><input type="password" id="ac_pw1" autocomplete="new-password" placeholder="8文字以上">'+
      '<label for="ac_pw2">新しいパスワード（確認）</label><input type="password" id="ac_pw2" autocomplete="new-password">'+
@@ -1134,10 +1209,13 @@ async function renderAccount(){
    '</div>';
   var syncName=function(){if($('ac_same').checked&&$('ac_staff').value)$('ac_name').value=$('ac_staff').value;};
   $('ac_staff').onchange=syncName;$('ac_same').onchange=syncName;
-  $('acSave').onclick=async function(){var b=this,n=$('ac_name').value.trim(),st=$('ac_staff').value;if(!n){toast('表示名を入れてください');return;}b.disabled=true;
+  var saveAcc=async function(){var n=$('ac_name').value.trim(),st=$('ac_staff').value;if(!n){toast('表示名を入れてください');return;}
     var r=await db.rpc('update_my_member',{p_display_name:n,p_staff_name:st});
-    if(r.error){toast('保存できませんでした：'+r.error.message);b.disabled=false;return;}
-    me.display_name=n;me.staff_name=st||null;acMsg='';toast('保存しました');renderAccount();};
+    if(r.error){toast('保存できませんでした：'+r.error.message);return;}
+    me.display_name=n;me.staff_name=st||null;acMsg='';toast('保存しました');};
+  var accAuto=function(){autoSave(saveAcc);};
+  $('ac_name').addEventListener('input',accAuto);$('ac_staff').addEventListener('change',accAuto);$('ac_same').addEventListener('change',accAuto);
+
   $('acPw').onclick=async function(){var b=this,a=$('ac_pw1').value,c=$('ac_pw2').value;
     if(a.length<8){toast('パスワードは8文字以上にしてください');return;}if(a!==c){toast('確認用のパスワードが一致しません');return;}
     b.disabled=true;var r=await db.auth.updateUser({password:a});b.disabled=false;
@@ -1153,8 +1231,7 @@ function membersTable(){
     if(!ed)return '<tr'+(off?' style="opacity:.55"':'')+'><td>'+esc(m.display_name||'（名前未設定）')+(self?' <span class="law">自分</span>':'')+'</td><td>'+esc(m.staff_name||'—')+'</td><td>'+esc(ROLE_NAME[m.role]||m.role)+'</td><td>'+st+'</td></tr>';
     var lock=m.role==='operator'&&me.role!=='operator';
     var roleSel=m.role==='operator'||self||off?'<span>'+esc(ROLE_NAME[m.role]||m.role)+'</span>':'<select data-mu="role" data-i="'+i+'"><option value="member"'+(m.role==='member'?' selected':'')+'>一般</option><option value="admin"'+(m.role==='admin'?' selected':'')+'>管理者</option></select>';
-    var btns=(off?'':'<button class="btn btn-sm" data-musave="'+i+'">保存</button>')+
-      (self||lock?'':(off?' <button class="btn btn-sm" data-muon="'+i+'">利用を再開</button>':' <button class="btn btn-sm" data-mupw="'+i+'">パスワード再設定</button> <button class="btn btn-sm btn-danger" data-muoff="'+i+'">停止</button>'));
+    var btns=(self||lock?'':(off?' <button class="btn btn-sm" data-muon="'+i+'">利用を再開</button>':' <button class="btn btn-sm" data-mupw="'+i+'">パスワード再設定</button> <button class="btn btn-sm btn-danger" data-muoff="'+i+'">停止</button>'));
     return '<tr'+(off?' style="opacity:.6"':'')+'><td><input type="text" data-mu="display_name" data-i="'+i+'" value="'+esc(m.display_name||'')+'"'+(off?' disabled':'')+'>'+(self?' <span class="law">自分</span>':'')+'</td>'+
       '<td><select data-mu="staff_name" data-i="'+i+'"'+(off?' disabled':'')+'>'+staffLinkOpts(m.staff_name||'',m.user_id)+'</select></td><td>'+roleSel+'</td>'+
       '<td class="sub" style="font-size:12px">'+esc(au.email||'')+'</td><td class="num sub" style="font-size:12px">'+esc(fmtDt(au.last_sign_in_at))+'</td><td>'+st+'</td><td style="white-space:nowrap">'+btns+'</td></tr>';}).join('')+'</tbody></table></div>'+
@@ -1165,13 +1242,15 @@ async function memberAction(action,m,extra){
   var err=await fnError(r);if(err){toast(err);return false;}return true;}
 function bindMembers(box){
   box.querySelectorAll('[data-mu]').forEach(function(el){var h=function(){var m=mpMembers[+el.dataset.i];m['_'+el.dataset.mu]=el.value;if(el.dataset.mu==='staff_name'&&el.value){var n=box.querySelector('[data-mu="display_name"][data-i="'+el.dataset.i+'"]');if(n&&!n.value.trim()){n.value=el.value;m._display_name=el.value;}}};el.addEventListener('input',h);el.addEventListener('change',h);});
-  box.querySelectorAll('[data-musave]').forEach(function(b){b.onclick=async function(){var m=mpMembers[+b.dataset.musave];
+  var saveMember=async function(i){var m=mpMembers[i];if(!m)return;
     var dn=(m._display_name!=null?m._display_name:m.display_name||'').trim(),rl=m._role||m.role,st=m._staff_name!=null?m._staff_name:(m.staff_name||'');
-    if(!dn){toast('表示名を入れてください');return;}b.disabled=true;
+    if(!dn){toast('表示名を入れてください');return;}
     var r=await db.rpc('admin_update_member',{p_user_id:m.user_id,p_display_name:dn,p_role:rl,p_staff_name:st});
-    if(r.error){toast('保存できませんでした：'+r.error.message);b.disabled=false;return;}
+    if(r.error){toast('保存できませんでした：'+r.error.message);return;}
+    m.display_name=dn;m.role=rl;m.staff_name=st||null;
     if(me&&m.user_id===me.user_id){me.display_name=dn;me.staff_name=st||null;}
-    toast('保存しました');await loadMembers();renderMypage();};});
+    toast('保存しました');};
+  box.querySelectorAll('[data-mu]').forEach(function(el){var f=function(){var i=+el.dataset.i;autoSave(function(){return saveMember(i);});};el.addEventListener('input',f);el.addEventListener('change',f);});
   box.querySelectorAll('[data-muoff]').forEach(function(b){b.onclick=async function(){var m=mpMembers[+b.dataset.muoff];
     if(!confirm((m.display_name||'このユーザー')+' を停止しますか？\n\nすぐにログインできなくなり、データも見られなくなります。\nチャットや記録に残った名前は消えません。あとで「利用を再開」できます。'))return;
     b.disabled=true;if(await memberAction('disable_user',m)){toast('停止しました');await loadMembers();renderMypage();}else b.disabled=false;};});
@@ -1315,7 +1394,7 @@ function render(force){
 
 /* 移植した機能（下の別スクリプト）から使う小物 */
 var sesUser=null;
-window.RSO={db:function(){return db;},me:function(){return me;},org:function(){return myOrg;},uid:function(){return sesUser&&sesUser.id;},email:function(){return sesUser&&sesUser.email;},view:function(){return view;},setView:function(v){setView(v);},esc:esc,$:$,toast:toast,today:today,addDays:addDays,ymd:ymd,ym:ym,md:md,fmt:fmt,must:must};
+window.RSO={db:function(){return db;},me:function(){return me;},org:function(){return myOrg;},uid:function(){return sesUser&&sesUser.id;},email:function(){return sesUser&&sesUser.email;},view:function(){return view;},setView:function(v){setView(v);},esc:esc,$:$,toast:toast,today:today,addDays:addDays,ymd:ymd,ym:ym,md:md,fmt:fmt,must:must,autoSave:autoSave,autoFlush:autoFlush,asv:asv,AS:AS,unProviders:unProviders,canEditOrg:canEditOrg};
 /* ---------- 起動 ---------- */
 try{var sv=localStorage.getItem('eb_view');if(sv&&TITLES[sv])view=sv;}catch(e){}
 setView(view);
@@ -1362,7 +1441,8 @@ boot();
 (function(){
 'use strict';
 var R=window.RSO; if(!R)return;
-var esc=R.esc,$=R.$,toast=R.toast,today=R.today,addDays=R.addDays,must=R.must,md=R.md,fmt=R.fmt;
+var unProviders=R.unProviders;
+var esc=R.esc,$=R.$,toast=R.toast,today=R.today,addDays=R.addDays,must=R.must,md=R.md,fmt=R.fmt,autoSave=R.autoSave,autoFlush=R.autoFlush,AS=R.AS;
 function db(){return R.db();}
 var KF={"companies":[["name","機関名","基本情報","基本情報","text",[]],["corp_no","法人番号","基本情報","基本情報","text",[]],["corp_type","企業カテゴリー","基本情報","基本情報","select",["個人","法人(大)","法人(中小)"]],["zip","郵便番号","基本情報","本社所在地","text",[]],["address","住所","基本情報","本社所在地","text",[]],["tel","電話番号","基本情報","基本情報","text",[]],["rep_name","代表者名","基本情報","代表者・担当者","text",[]],["rep_title","代表者役職","基本情報","代表者・担当者","text",[]],["capital","資本金","財務情報","企業規模","text",[]],["employees","従業員数","財務情報","企業規模","text",[]],["foreign_employees","外国人従業員数","財務情報","企業規模","text",[]],["sales_y1","売上高（1期前）","財務情報","財務情報（直近3期）","text",[]],["sales_y2","売上高（2期前）","財務情報","財務情報（直近3期）","text",[]],["sales_y3","売上高（3期前）","財務情報","財務情報（直近3期）","text",[]],["ordinary_pl_y1","経常利益（1期前）","財務情報","財務情報（直近3期）","text",[]],["ordinary_pl_y2","経常利益（2期前）","財務情報","財務情報（直近3期）","text",[]],["ordinary_pl_y3","経常利益（3期前）","財務情報","財務情報（直近3期）","text",[]],["net_pl_y1","純利益（1期前）","財務情報","財務情報（直近3期）","text",[]],["net_pl_y2","純利益（2期前）","財務情報","財務情報（直近3期）","text",[]],["net_pl_y3","純利益（3期前）","財務情報","財務情報（直近3期）","text",[]],["net_assets_y1","純資産（1期前）","財務情報","財務情報（直近3期）","text",[]],["net_assets_y2","純資産（2期前）","財務情報","財務情報（直近3期）","text",[]],["net_assets_y3","純資産（3期前）","財務情報","財務情報（直近3期）","text",[]],["drive_url2","ドライブURL","基本情報","ドライブ","text",[]],["folder_no","フォルダ番号","基本情報","基本情報","text",[]],["memo","社内メモ","基本情報","担当","textarea",[]],["company_note","企業メモ — 相談内容・やり取りなどを自由記述","メモ","企業メモ","textarea",[]],["last_visit","最終訪問日","メモ","企業ノート（時系列）","date",[]],["main_staff","メイン担当","基本情報","担当","select","@staff"],["sub_staff","サブ担当","基本情報","担当","multiselect","@staff"],["fee_per_person","1人あたり委託費（税抜）","契約・委託費","委託費設定","number",[]],["billing_cycle","請求サイクル","契約・委託費","委託費設定","select",["1か月","3か月","6か月","12か月","1シーズン"]],["payment_method","支払方法","契約・委託費","委託費設定","select",["口振","振込","現金"]],["invoice_method","請求方法","契約・委託費","委託費設定","select",["メール","LINE","郵送","FAX"]],["invoice_to","請求先（メールアドレス or 住所）","契約・委託費","委託費設定","text",[]],["direct_debit_applied","口座振替 申込日","契約・委託費","委託費設定","date",[]],["direct_debit_registered","口座振替 登録日","契約・委託費","委託費設定","date",[]],["status","ステータス","基本情報","基本情報","select",[["active","支援中"],["past","過去"]]],["billing_start_month","請求開始月 (YYYY-MM)","契約・委託費","委託費設定","month",[]],["workplace_name","事業所名","基本情報","就業場所","text",[]],["workplace_zip","事業所郵便番号","基本情報","就業場所","text",[]],["workplace_address","事業所住所","基本情報","就業場所","text",[]],["workplace_tel","事業所電話番号","基本情報","就業場所","text",[]],["billing_timing","請求タイミング","契約・委託費","委託費設定","select",["当月末","初月末","翌月末","終月末","終月の翌月末","当月末/翌々10日払い","初月末/翌々5日払い","初月末/翌々10日払い"]],["company_notes","企業ノート（時系列）","メモ","企業ノート（時系列）","rows",[]],["workplaces_extra","追加の就業場所","基本情報","就業場所","rows",[]],["other_foreign_employment","外国人の就労（特定技能以外）","メモ","受け入れ状況（協力確認書）","select",["あり","なし"]],["other_foreign_employment_types","就労の種類（複数選択可）","メモ","受け入れ状況（協力確認書）","multiselect",["技能実習","技人国","永住者・定住者","その他"]],["other_support_org_used","他登録支援機関の利用","メモ","受け入れ状況（協力確認書）","select",["あり","なし"]],["other_support_org_detail","他登録支援機関の詳細 （任意）","メモ","受け入れ状況（協力確認書）","textarea",[]],["insurance_guidance_date","保険案内指導 日程","メモ","任意保険の加入状況","date",[]],["insurance_guidance_staff","保険案内指導 担当名","メモ","任意保険の加入状況","text",[]],["insurance_name","保険名","メモ","任意保険の加入状況","text",[]],["insurance_start_date","加入日","メモ","任意保険の加入状況","date",[]],["insurance_end_date","終了日","メモ","任意保険の加入状況","date",[]],["insurance_procedure_by","加入手続き","メモ","任意保険の加入状況","select",["企業","本人","自社","他支援機関"]],["insurance_premium_by","保険料負担","メモ","任意保険の加入状況","select",["企業","本人"]],["insurance_note","その他 保険に関する共有事項","メモ","任意保険の加入状況","textarea",[]],["team_staff","チーム内サブ担当","基本情報","担当","multiselect","@staff"],["next_main_staff","引継ぎ予定 （変更後担当者）","基本情報","担当","select","@staff"],["contact_persons","担当者連絡先","基本情報","代表者・担当者","rows",[]],["contact_note","連絡先備考","基本情報","代表者・担当者","textarea",[]],["industries","業種（特定技能分野）","基本情報","基本情報","multiselect","@industries"],["industry_note","業種に関する詳細","基本情報","基本情報","textarea",[]],["supervisor_name","監督者の氏名","基本情報","代表者・担当者","text",[]],["supervisor_title","監督者の役職","基本情報","代表者・担当者","text",[]],["supervisor_dept","監督者の所属部署","基本情報","代表者・担当者","text",[]],["visa_fee_pattern","費用の負担パターン","基本情報","入管申請費用（収入印紙代）","select",["A","B","C"]],["visa_fee_note","メモ","基本情報","入管申請費用（収入印紙代）","textarea",[]],["staff_handovers","担当の変更履歴（引継ぎの記録）","基本情報","担当","rows",[]],["tax_included","税込請求","契約・委託費","委託費設定","checkbox",[]],["initial_fee","現在の初期費用（税抜・円）","契約・委託費","初期費用","number",[]],["initial_fee_log","初期費用変更履歴","契約・委託費","初期費用","rows",[]],["support_contract_date","支援委託契約の締結日","契約・委託費","支援委託契約（帳簿②）","date",[]],["support_contract_end","契約の終了日（定めがある場合）","契約・委託費","支援委託契約（帳簿②）","date",[]],["support_contract_scope","受託した支援業務の範囲","契約・委託費","支援委託契約（帳簿②）","textarea",[]],["support_cost_note","支援経費の収支・内訳","契約・委託費","支援委託契約（帳簿②）","textarea",[]],["support_fee_items","支援委託費用の内訳（5-10号 別紙）","契約・委託費","支援委託契約（帳簿②）","rows",[]],["support_court","合意管轄裁判所（例：名古屋地方裁判所）","契約・委託費","支援委託契約（帳簿②）","text",[]],["support_fee_shown_date","支援業務の費用の額・内訳を所属機関に示した日（契約の前）","契約・委託費","支援委託契約（帳簿②）","date",[]],["support_no_burden_date","支援費用を外国人に負担させないことを所属機関と確認した日","契約・委託費","支援委託契約（帳簿②）","date",[]]],"workers":[["company_id","所属機関","基本情報","7. 所属機関・受け入れ情報","select","@companies"],["name","氏名（ローマ字）","基本情報","6. 人材情報","text",[]],["name_kana","フリガナ","基本情報","6. 人材情報","text",[]],["nationality","国籍","基本情報","6. 人材情報","select",["","インドネシア","ベトナム","タイ","カンボジア","ミャンマー","バングラデシュ","スリランカ","フィリピン","中国","その他"]],["gender","性別","基本情報","6. 人材情報","select",["","男","女"]],["birthdate","生年月日","基本情報","6. 人材情報","date",[]],["residence_card","在留カード番号","基本情報","2. 在留情報","text",[]],["passport","パスポート番号","基本情報","6. 人材情報","text",[]],["passport_expiry","パスポート期限","基本情報","6. 人材情報","date",[]],["visa_status","在留資格","基本情報","2. 在留情報","select",["","特定技能1号","特定技能2号","特定活動","技能実習2号","技能実習3号","家族滞在","技人国","その他"]],["visa_expiry","在留期限","基本情報","2. 在留情報","date",[]],["entry_date","入国：出迎え日（上陸日）","基本情報","8. 支援情報 / 出入国の情報","date",[]],["joined_date","配属日","基本情報","7. 所属機関・受け入れ情報","date",[]],["left_date","退職日","基本情報","7. 所属機関・受け入れ情報","date",[]],["applicant_field","分野","基本情報","7. 所属機関・受け入れ情報","select",["介護","ビルクリーニング","工業製品製造業","建設","造船・舶用工業","自動車整備","航空","宿泊","自動車運送業","鉄道","農業","漁業","飲食料品製造業","外食業","林業","木材産業","リネンサプライ","物流倉庫","資源循環"]],["job_category","職種","基本情報","7. 所属機関・受け入れ情報","select","@jobcat"],["status","在職ステータス","基本情報","6. 人材情報","select",["配属前","在職中","在職中(一時帰国中)","在職中（支援なし）","支援機関変更（予定）","支援機関変更済み","退職予定(更新なし決定)","退職済(帰国)","退職済(転職)","辞退/キャンセル"]],["kmt_support","支援区分","基本情報","8. 支援情報","select",["自社支援","支援外"]],["return_home_date","一時帰国日","基本情報","8. 支援情報 / 一時帰国","date",[]],["return_jp_date","再入国日","基本情報","8. 支援情報 / 一時帰国","date",[]],["tg2_expiry","5年満了日","基本情報","8. 支援情報 / 5年満了","date",[]],["tg2_status","5年満了状況","基本情報","8. 支援情報 / 5年満了","text",[]],["phone","電話番号","基本情報","9. 連絡先","text",[]],["email","メール","基本情報","9. 連絡先","text",[]],["memo","備考","基本情報","5. メモ","textarea",[]],["workplace_name","就業場所名","基本情報","7. 所属機関・受け入れ情報","select","@workplaces"],["apply_date","申請日","基本情報","1. 申請情報","date",[]],["apply_number","申請番号","基本情報","1. 申請情報","text",[]],["request_date","申請依頼日","基本情報","1. 申請情報","date",[]],["drive_url_kmt","ドライブURL","基本情報","4. ドライブリンク","text",[]],["apply_status","申請ステータス","基本情報","1. 申請情報","select",["申請予定なし","自社・人材申請","申請準備中","審査中","申請済み・不足あり","追完指示","審査完了","発行待ち","発行完了","入国済み","取り下げ","不許可"]],["photo_url","顔写真URL","基本情報","4. ドライブリンク","text",[]],["management_no","管理番号","基本情報","6. 人材情報","text",[]],["apply_type","申請種別","基本情報","1. 申請情報","select",["","認定","変更","更新","申請なし"]],["desired_visa","希望在留資格","基本情報","1. 申請情報","select",["","特定技能1号","特定技能2号","特定活動","技人国","家族滞在"]],["emergency_contact_name","氏名 (緊急連絡先)","基本情報","9. 連絡先 / 緊急連絡先","text",[]],["emergency_contact_relation","続柄 (緊急連絡先)","基本情報","9. 連絡先 / 緊急連絡先","text",[]],["emergency_contact_phone","電話 (緊急連絡先)","基本情報","9. 連絡先 / 緊急連絡先","text",[]],["emergency_contact_whatsapp","WhatsApp (緊急連絡先)","基本情報","9. 連絡先 / 緊急連絡先","text",[]],["emergency_contact_address","母国の住所","基本情報","9. 連絡先","text",[]],["emergency_contact_sns","SNS (緊急連絡先)","基本情報","9. 連絡先 / 緊急連絡先","text",[]],["worker_whatsapp","WhatsApp","基本情報","9. 連絡先","text",[]],["worker_fb","Facebook","基本情報","9. 連絡先","text",[]],["worker_instagram","Instagram","基本情報","9. 連絡先","text",[]],["worker_sns_other","その他SNS","基本情報","9. 連絡先","text",[]],["residence_card_history","在留カード履歴","基本情報","2. 在留情報","textarea",[]],["first_tokutei_date","初回特定技能取得日","基本情報","2. 在留情報","date",[]],["placement_report_date","受け入れ報告日","建設業の報告","就労管理システムの報告【建設業のみ】","date",[]],["retire_report_date","退職報告日","建設業の報告","就労管理システムの報告【建設業のみ】","date",[]],["tg2_change_report_date","2号変更報告日","建設業の報告","就労管理システムの報告【建設業のみ】","date",[]],["renewal_status","更新状況ステータス","基本情報","3. 更新状況","select",["","更新決定（通常）","更新決定（優先度高め）","更新決定（6年目）","更新なし","要確認","申請依頼済み","完了"]],["renewal_stage","現在の段階","基本情報","3. 更新状況","textarea",[]],["renewal_memo","申請メモ (メモ)","基本情報","3. 更新状況","textarea",[]],["employment_condition","確定雇用条件","基本情報","3. 更新状況","textarea",[]],["lump_sum_plan","脱退一時金の予定","基本情報","8. 支援情報 / 一時帰国","select",["","あり","なし"]],["transfer_out_date","転出手続き日付","基本情報","8. 支援情報 / 一時帰国 / 転出・転入手続き","date",[]],["transfer_out_done","済み (転出)","基本情報","8. 支援情報 / 一時帰国 / 転出・転入手続き","checkbox",[]],["transfer_in_date","転入手続き日付","基本情報","8. 支援情報 / 一時帰国 / 転出・転入手続き","date",[]],["transfer_in_done","済み (転入)","基本情報","8. 支援情報 / 一時帰国 / 転出・転入手続き","checkbox",[]],["renewal_check_staff","企業確認担当","基本情報","3. 更新状況","select","@staff"],["expected_leave_date","退職予定日","基本情報","6. 人材情報","date",[]],["residence_card_issued","在留カードの情報 発行済み","基本情報","3. 更新状況","checkbox",[]],["card_tracking_no","在留カード 郵送追跡番号（在カパ）","基本情報","3. 更新状況","text",[]],["card_mailing_address","郵送先","基本情報","3. 更新状況","textarea",[]],["last_year_address","前年1月1日の住所","基本情報","6. 人材情報","text",[]],["work_start_date","就労開始日","基本情報","7. 所属機関・受け入れ情報","date",[]],["apply_memo","申請メモ","基本情報","1. 申請情報","textarea",[]],["card_info_done","在留情報が入力されています","基本情報","1. 申請情報","checkbox",[]],["jp_address_done","入力済み (人材の日本住所を入力してください)","基本情報","1. 申請情報","checkbox",[]],["tokutei_history","A. 特定技能１号の経歴（就労先の行）","基本情報","10. 通算期間と過去の就労先","rows",[]],["past_employment","C. その他在留資格の経歴（ 過去の所属又は勤務先（特定技能以外））","基本情報","10. 通算期間と過去の就労先","rows",[]],["history_verified","経歴内容を担当が精査済み","基本情報","10. 通算期間と過去の就労先","checkbox",[]],["support_org_change_date","支援機関変更日","基本情報","6. 人材情報","date",[]],["pre_guidance_date","事前ガイダンス実施日","基本情報","8. 支援情報 / 事前ガイダンス","date",[]],["pre_guidance_staff","実施担当名","基本情報","8. 支援情報 / 事前ガイダンス","select","@staff"],["orientation_date","オリエンテーション実施日","基本情報","8. 支援情報 / 生活オリエンテーション","date",[]],["orientation_staff","実施担当","基本情報","8. 支援情報 / 生活オリエンテーション","select","@staff"],["entry_pickup_staff","入国：担当者名","基本情報","8. 支援情報 / 出入国の情報","select","@staff"],["entry_domestic_change","国内変更（入国の出迎え情報を必須にしない）","基本情報","8. 支援情報 / 出入国の情報","checkbox",[]],["departure_date","出国：見送り日（出国日）","基本情報","8. 支援情報 / 出入国の情報","date",[]],["departure_staff","出国：担当者名","基本情報","8. 支援情報 / 出国","select","@staff"],["jp_addresses","日本住所","基本情報","6. 人材情報","rows",[]],["history_unknown","【要確認】通算期間不明","基本情報","10. 通算期間と過去の就労先","checkbox",[]],["tokutei_six_year","6年 (通算在留期間6年)","基本情報","10. 通算期間と過去の就労先","checkbox",[]],["tokutei2_history","B. 特定技能２号の経歴","基本情報","10. 通算期間と過去の就労先","rows",[]],["shitei_verified","指定書チェック済み","基本情報","10. 通算期間と過去の就労先","checkbox",[]],["periodic_report","定期報告対象","基本情報","8. 支援情報","select",["","対象","対象外"]],["support_plan_date","支援計画（1-17号）作成日","基本情報","8. 支援情報 / 支援の開始・終了（帳簿③）","date",[]],["support_start_date","支援開始日","基本情報","8. 支援情報 / 支援の開始・終了（帳簿③）","date",[]],["support_end_date","支援終了日","基本情報","8. 支援情報 / 支援の開始・終了（帳簿③）","date",[]],["support_end_reason","支援終了の理由","基本情報","8. 支援情報 / 支援の開始・終了（帳簿③）","select",["雇用契約の終了（帰国）","雇用契約の終了（転職）","支援委託契約の終了（支援機関の変更）","在留資格の変更","行方不明","死亡","その他"]],["support_contract_signed_date","支援委託契約書（5-10号）の締結日","基本情報","8. 支援情報 / 支援の開始・終了（帳簿③）","date",[]],["support_contract_pdf_url","支援委託契約書（5-10号・署名済みPDF）のドライブURL","基本情報","8. 支援情報 / 支援の開始・終了（帳簿③）","text",[]]],"jobs":[["progress","進捗ステータス","求人情報","①求人ステータス","select",["","募集中","新着","詳細確認中","提案中","結果待ち","保留","停止","決定","募集再開","決定・募集継続","決定・募集停止"]],["sales_staff","営業担当","求人情報","④優先度・担当","select","@staff"],["glt_staff","人材担当","求人情報","④優先度・担当","select","@staff"],["code","求人コード（求人受理番号）","求人情報","②企業情報","text",[]],["company_name","会社名・案件名","求人情報","②企業情報","text",[]],["domestic","国内/外","求人情報","③求人内容","text",[]],["job_type","職種","求人情報","③求人内容","text",[]],["industry","分野","求人情報","③求人内容","select","@fields+"],["recruit_start","募集開始日","求人情報","⑥社内","date",[]],["unit_price","初期費用単価（円）","求人情報","⑤手数料管理","number",[]],["expected_count","募集人数","求人情報","⑤手数料管理","number",[]],["amount","初期費用（合計）","求人情報","⑤手数料管理","number",[]],["comment","コメント","求人情報","⑦募集状況・コメント","textarea",[]],["nationalities","対象国籍","求人情報","③求人内容","multiselect",["インドネシア","ベトナム","タイ","カンボジア","ミャンマー","バングラデシュ","スリランカ","フィリピン","中国","ネパール"]],["company_id","所属機関","求人情報","②企業情報","select","@companies"],["contact_phone","（企業側）連絡先電話番号","求人票","(9) 求人受理票（労働局指定項目）","text",[]],["reception_date","受付年月日","求人票","(9) 求人受理票（労働局指定項目）","date",[]],["valid_until","有効期間（終了日）","求人票","(9) 求人受理票（労働局指定項目）","date",[]],["employment_period_type","雇用期間","求人票","(9) 求人受理票（労働局指定項目）","select",["有期","無期","定めなし"]],["employment_period_detail","雇用期間詳細（有期の場合）","求人票","(9) 求人受理票（労働局指定項目）","text",[]],["location","就業場所","求人票","会社情報","text",[]],["jp_level_req","日本語レベル","求人票","(6) 受入れにあたって","select",["N1","N2","N3","N4","N5","日本語不要"]],["required_license","必要な資格","求人票","(6) 受入れにあたって","text",[]],["salary_type","給与形態","求人票","⑶ 賃金・手当","select",["月給","日給","時給"]],["salary_amount","支給額（賃金）","求人票","⑶ 賃金・手当","number",[]],["dormitory_available","寮の有無","求人票","⑸ 寮について","select",["あり","なし"]],["annual_holiday_days","年間休日日数","求人票","⑵ 勤務時間","number",[]],["referral_fee","紹介費（円・税抜）","求人情報","⑥社内","number",[]],["progress_note","案件担当のコメント（候補者の状況・進捗）","求人情報","⑦募集状況・コメント","textarea",[]],["jinzai_comment","人材担当のコメント","求人情報","⑦募集状況・コメント","textarea",[]],["job_description","仕事内容","求人票","⑴ 募集人材の仕事内容","textarea",[]],["company_kind","区分（手数料管理）","求人情報","⑤手数料管理","select",["既存企業","新規企業","その他"]],["priority_level","優先度","求人情報","④優先度・担当","select",["非常に高い","高い","普通"]],["forecast_status","見込み状況","求人情報","④優先度・担当","select",["全決定を目指す","応募者がいればでOK","条件の見直しが必要","要確認・催促"]],["faq_custom","追加した質問","求人票","よくある質問","rows",[]],["company_address","企業住所（所在地）","求人情報","②企業情報","text",[]],["business_content","事業内容","求人票","会社情報","textarea",[]],["employee_count","従業員数","求人票","会社情報","text",[]],["foreign_employee_count","外国籍の従業員数","求人票","会社情報","text",[]],["employee_nationality","従業員の国籍","求人票","会社情報","text",[]],["established","設立","求人票","会社情報","text",[]],["capital","資本金","求人票","会社情報","text",[]],["appeal","アピールポイント","求人票","会社情報","textarea",[]],["recruit_reason","募集経緯","求人票","会社情報","textarea",[]],["trial_period","試用期間","求人票","⑵ 勤務時間","select",["有","無"]],["trial_period_detail","試用期間の詳細","求人票","⑵ 勤務時間","text",[]],["start_time","始業","求人票","⑵ 勤務時間","text",[]],["end_time","終業","求人票","⑵ 勤務時間","text",[]],["work_hours","所定労働時間数","求人票","⑵ 勤務時間","text",[]],["break_minutes","休憩","求人票","⑵ 勤務時間","text",[]],["overtime","残業（所定外）","求人票","⑵ 勤務時間","select",["有","無"]],["overtime_detail","残業の詳細","求人票","⑵ 勤務時間","text",[]],["flex_work","変形労働","求人票","⑵ 勤務時間","select",["有","無"]],["flex_work_detail","変形労働の詳細","求人票","⑵ 勤務時間","text",[]],["take_home","手取り金額イメージ","求人票","⑶ 賃金・手当","text",[]],["allowance1_name","手当① 名称","求人票","⑶ 賃金・手当","text",[]],["allowance1_amount","手当① 金額","求人票","⑶ 賃金・手当","text",[]],["allowance1_cond","手当① 条件","求人票","⑶ 賃金・手当","text",[]],["allowance2_name","手当② 名称","求人票","⑶ 賃金・手当","text",[]],["allowance2_amount","手当② 金額","求人票","⑶ 賃金・手当","text",[]],["allowance2_cond","手当② 条件","求人票","⑶ 賃金・手当","text",[]],["bonus","賞与","求人票","⑶ 賃金・手当","select",["有","無"]],["bonus_detail","賞与の詳細","求人票","⑶ 賃金・手当","text",[]],["meal_cost","食費","求人票","⑷ 控除額（毎月の給与から天引き）","text",[]],["housing_cost","居住費（家賃）","求人票","⑷ 控除額（毎月の給与から天引き）","text",[]],["utility_cost","水道光熱費","求人票","⑷ 控除額（毎月の給与から天引き）","text",[]],["other_deduction1","その他①","求人票","⑷ 控除額（毎月の給与から天引き）","text",[]],["other_deduction2","その他②","求人票","⑷ 控除額（毎月の給与から天引き）","text",[]],["room_capacity","1部屋あたり","求人票","⑸ 寮について","text",[]],["room_layout","間取り・人数","求人票","⑸ 寮について","text",[]],["furniture","家電・家具","求人票","⑸ 寮について","text",[]],["dorm_distance","会社までの距離","求人票","⑸ 寮について","text",[]],["wifi","WIFI","求人票","⑸ 寮について","text",[]],["dorm_area","周辺環境","求人票","⑸ 寮について","text",[]],["gender_req","性別","求人票","(6) 受入れにあたって","text",[]],["age_limit","年齢","求人票","(6) 受入れにあたって","text",[]],["experience_req","経験","求人票","(6) 受入れにあたって","text",[]],["ideal_candidate","理想の人材像","求人票","(6) 受入れにあたって","textarea",[]],["subsidy","補助の有無","求人票","(6) 受入れにあたって","select",["有","無"]],["subsidy_detail","補助内容","求人票","(6) 受入れにあたって","text",[]],["interview_schedule","面接可能日時","求人票","(7) 面接について","text",[]],["interview_method","面接方法","求人票","(7) 面接について","text",[]],["interview_tool","可能ツール","求人票","(7) 面接について","text",[]],["interview_count","面接回数","求人票","(7) 面接について","text",[]],["kmt_interview","自社での人材面接","求人票","(7) 面接について","text",[]],["smoking_policy","喫煙対策","求人票","(8) 就業場所における受動喫煙防止処置の状況","text",[]],["order_memo","確認事項・追加事項","求人票","(10) 確認事項・追加事項（メモ）／ チェックポイント","textarea",[]],["client_contact_name","（企業側）連絡担当者名","求人票","(9) 求人受理票（労働局指定項目）","text",[]],["drive_url_kmt","ドライブのリンク","求人情報","④優先度・担当","text",[]],["sheet_kind","求人票の種類","求人票","求人票の種類","select",[["ssw","特定技能"],["general","一般"],["hsp","高度人材"]]],["prospect_count","見込み人数","求人情報","⑤手数料管理","number",[]],["candidate_status_rows","募集状況（国籍ごと）","求人情報","⑦募集状況・コメント","rows",[]],["nearest_station","最寄り駅・交通","求人票","会社情報","text",[]],["holiday_text","休日","求人票","⑵ 勤務時間","text",[]],["salary_max","支給額の上限（幅があるとき）","求人票","⑶ 賃金・手当","number",[]],["salary_monthly","月給換算（月給にするとどれくらいか）","求人票","⑶ 賃金・手当","text",[]]],"candidates":[["name","氏名（ローマ字）","候補者情報","基本情報","text",[]],["name","氏名（ローマ字）","履歴書","基本情報","text",[]],["name_kana","フリガナ","候補者情報","基本情報","text",[]],["name_kana","フリガナ","履歴書","基本情報","text",[]],["nationality","国籍","候補者情報","国籍・家族","select",["インドネシア","ベトナム","フィリピン","ミャンマー","ネパール","カンボジア","タイ","中国","モンゴル","スリランカ","ウズベキスタン","バングラデシュ","その他"]],["nationality","国籍","履歴書","基本情報","select",["インドネシア","ベトナム","フィリピン","ミャンマー","ネパール","カンボジア","タイ","中国","モンゴル","スリランカ","ウズベキスタン","バングラデシュ","その他"]],["gender","性別","候補者情報","国籍・家族","select",["男","女"]],["gender","性別","履歴書","基本情報","select",["男","女"]],["birthdate","生年月日","候補者情報","基本情報","date",[]],["birthdate","生年月日","履歴書","基本情報","date",[]],["birth_place","出身地","履歴書","基本情報","text",[]],["home_country_address","本国住所","候補者情報","基本情報","text",[]],["home_country_address","本国住所","履歴書","基本情報","text",[]],["phone","電話（追加情報）","履歴書","履歴書に出さない情報（追加情報）","text",[]],["email","メール（追加情報）","履歴書","履歴書に出さない情報（追加情報）","text",[]],["school_name","学校名","履歴書","学歴","text",[]],["completion_date","卒業年月 (label varies by 卒業状況)","履歴書","学歴","date",[]],["major","専攻","履歴書","学歴","text",[]],["experience","実務経験（経験者）","候補者情報","日本語能力・経験","textarea",[]],["experience","実務経験（経験者）","履歴書","基本情報","textarea",[]],["skill_exam_1","技能試験","候補者情報","日本語能力・経験","select",["なし","専門級","随時３級","評価調書","特定技能評価試験","その他（記入）"]],["skill_exam_1","技能試験","履歴書","保有資格 / 日本語・試験","select",["なし","専門級","随時３級","評価調書","特定技能評価試験","その他（記入）"]],["applicant_field","分野","候補者情報","基本情報","text",[]],["applicant_field","分野","履歴書","基本情報","text",[]],["job_category","職種 (求職票: 希望職種)","候補者情報","基本情報","text",[]],["job_category","職種 (求職票: 希望職種)","履歴書","基本情報","text",[]],["status","ステータス（いまどこまで進んでいるか）","候補者情報","ステータス","select",["新規登録","（見送り）一次面接","提案待ち","企業面接待ち","結果待ち","内定","（見送り）企業面接不合格","（辞退）本人が応募キャンセル"]],["staff","人材担当","候補者情報","担当","select","@staff"],["memo","メモ","候補者情報","担当","textarea",[]],["height_cm","身長(cm)","履歴書","基本情報","number",[]],["weight_kg","体重(kg)","履歴書","基本情報","number",[]],["shoe_size","靴サイズ","履歴書","基本情報","text",[]],["marital_status","配偶者","候補者情報","国籍・家族","select",["有","無"]],["marital_status","配偶者","履歴書","基本情報","select",["有","無"]],["num_children","子供（人数）","候補者情報","国籍・家族","number",[]],["num_children","子供（人数）","履歴書","基本情報","number",[]],["religion","宗教","候補者情報","国籍・家族","select",["仏教","ヒンズー教","イスラム教","キリスト教","その他（記入）"]],["religion","宗教","履歴書","基本情報","select",["仏教","ヒンズー教","イスラム教","キリスト教","その他（記入）"]],["family_consent","就労についての家族の同意","履歴書","一時帰国・家族の同意・健康","select",["同意している","相談中","同意していない"]],["current_visa_status","現在保有している在留資格","履歴書","在留資格・入社希望日","select",["なし","技能実習２号","技能実習３号","特定技能１号","特定技能２号","特定活動","留学生","家族滞在","技術・人文知識・国際業務"]],["current_visa_expiry","在留期限","履歴書","在留資格・入社希望日","date",[]],["residence_card","在留カード番号（追加情報）","履歴書","履歴書に出さない情報（追加情報）","text",[]],["jp_address","日本住所（在留者）/ 履歴書:日本住所（お持ちの方）","候補者情報","基本情報","text",[]],["jp_address","日本住所（在留者）/ 履歴書:日本住所（お持ちの方）","履歴書","基本情報","text",[]],["work_history","職歴","履歴書","職歴","rows",[]],["resignation_note","退職理由・状況（追加情報）","履歴書","履歴書に出さない情報（追加情報）","text",[]],["jp_language_level","日本語レベル","候補者情報","日本語能力・経験","select",["無し","N5","N4","N3","N2","N1","JFT BASIC A2"]],["jp_language_level","日本語レベル","履歴書","保有資格 / 日本語・試験","select",["無し","N5","N4","N3","N2","N1","JFT BASIC A2"]],["jp_language_detail","日本語詳細","候補者情報","日本語能力・経験","select",["N1相当","N2相当","N3相当","N4相当","N5相当"]],["jp_language_detail","日本語詳細","履歴書","保有資格 / 日本語・試験","select",["N1相当","N2相当","N3相当","N4相当","N5相当"]],["licenses","保有資格 (+ 運転免許, その他資格)","履歴書","保有資格 / 日本語・試験","lic",[]],["available_from","入社希望日","候補者情報","希望・就労条件","date",[]],["available_from","入社希望日","履歴書","在留資格・入社希望日","date",[]],["completion_date_expected","退職予定日 (旧・修了予定日)","履歴書","在留資格・入社希望日","date",[]],["net_salary_base","希望手取り","候補者情報","希望・就労条件","text",[]],["net_salary_base","希望手取り","履歴書","給与・面接可能日時","text",[]],["net_salary_overtime","希望の給与 手取り(残業あり)","履歴書","給与・面接可能日時","text",[]],["desired_salary","希望月給","候補者情報","希望・就労条件","text",[]],["overtime_preference","残業（現職）（追加情報）","候補者情報","希望・就労条件","select",["あり","なし"]],["overtime_preference","残業（現職）（追加情報）","履歴書","履歴書に出さない情報（追加情報）","select",["あり","なし"]],["temp_return_wish","一時帰国希望","候補者情報","希望・就労条件","select",["希望する","希望しない"]],["temp_return_wish","一時帰国希望","履歴書","一時帰国・家族の同意・健康","select",["希望する","希望しない"]],["interview_availability","面接可能な日時","候補者情報","希望・就労条件","text",[]],["interview_availability","面接可能な日時","履歴書","給与・面接可能日時","text",[]],["motivation","志望動機","候補者情報","希望・就労条件","textarea",[]],["motivation","志望動機","履歴書","基本情報","textarea",[]],["health_status","健康状態","候補者情報","希望・就労条件","multiselect",["良好（持病なし・入院歴なし・通院中ではない）","持病あり","通院歴はあるが、完治している","入院歴はあるが、完治している","治療中"]],["health_status","健康状態","履歴書","一時帰国・家族の同意・健康","multiselect",["良好（持病なし・入院歴なし・通院中ではない）","持病あり","通院歴はあるが、完治している","入院歴はあるが、完治している","治療中"]],["candidate_questions","本人からの質問","履歴書","本人からの質問・備考欄","textarea",[]],["staff_impression","担当者の感想","候補者情報","担当","textarea",[]],["staff_impression","担当者の感想","履歴書","本人からの質問・備考欄","textarea",[]],["interview_memo","企業面接メモ","履歴書","本人からの質問・備考欄","textarea",[]],["photo_url","証明写真","履歴書","基本情報","text",[]],["reception_date","受付年月日","候補者情報","基本情報","date",[]],["valid_until","有効期間（終了日）","候補者情報","基本情報","date",[]],["domestic_overseas","現在地（いまどこにいるか）","候補者情報","基本情報","select",["日本国内","海外"]],["jp_eval_grade","社内評価 (A〜E)","候補者情報","日本語能力・経験","select",["A","B","C","D","E"]],["jp_eval_note","評価コメント（面接所感）","候補者情報","日本語能力・経験","text",[]],["desired_area","希望地域","候補者情報","希望・就労条件","text",[]],["desired_other","希望その他","候補者情報","希望・就労条件","text",[]],["company_interview_date","企業面接日（予定）","候補者情報","企業面接","date",[]],["company_interview_result","面接結果","候補者情報","企業面接","select",["面接予定","合格","不合格","辞退","保留"]],["drive_url_kmt","ドライブのリンク","候補者情報","担当","text",[]],["overseas_country","いまいる国","候補者情報","基本情報","text",[]],["education_level","最終学歴","履歴書","学歴","select",["中学校","高校","専門学校","短期大学","大学","大学院"]],["education_status","卒業状況","履歴書","学歴","select",["卒業","中退","在学中"]],["education_note","中退の状況（自由記入）","履歴書","学歴","textarea",[]],["night_shift_count","夜勤（現職）（追加情報）","履歴書","履歴書に出さない情報（追加情報）","select",["あり","なし"]],["health_note","病名（必須）","履歴書","一時帰国・家族の同意・健康","textarea",[]],["skill_exam_item","技能試験項目","履歴書","保有資格 / 日本語・試験","text",[]],["cur_net_salary_base","現職の給与 手取り(残業無し)","履歴書","給与・面接可能日時","text",[]],["cur_net_salary_overtime","現職の給与 手取り(残業あり)","履歴書","給与・面接可能日時","text",[]],["lifestyle","ライフスタイル","履歴書","一時帰国・家族の同意・健康","multiselect",["タバコを吸う","タバコを吸わない","アルコールを飲む","アルコールを飲まない","運動はあまりしていない","運動を定期的にする"]],["temp_return_timing","一時帰国のタイミング","履歴書","一時帰国・家族の同意・健康","select",["入社前","入社後1〜2年目以内","入社後3年目以降","その他（記入）"]],["temp_return_period","一時帰国期間","履歴書","一時帰国・家族の同意・健康","text",[]],["family_consent_due","いつまでに結論が出ますか（必須）","履歴書","一時帰国・家族の同意・健康","text",[]],["ssw_remaining","在留可能期間","履歴書","在留資格・入社希望日","text",[]],["chronic_disease","持病名（必須）","履歴書","一時帰国・家族の同意・健康","textarea",[]]]};
 var SSW_FIELDS={"介護":["介護"],"ビルクリーニング":["ビルクリーニング"],"工業製品製造業":["機械金属加工","電気電子機器組立て","金属表面処理","紙器・段ボール箱製造","コンクリート製品製造","陶磁器製品製造","紡織製品製造","縫製","RPF製造","印刷・製本"],"建設":["土木","建築","ライフライン・設備"],"造船・舶用工業":["溶接","塗装","鉄工","仕上げ","機械加工","電気機器組立て"],"自動車整備":["自動車整備"],"航空":["空港グランドハンドリング","航空機整備"],"宿泊":["宿泊"],"自動車運送業":["トラック","タクシー","バス"],"鉄道":["軌道整備","電気設備整備","車両整備","車両製造","運輸係員"],"農業":["耕種農業全般","畜産農業全般"],"漁業":["漁業","養殖業"],"飲食料品製造業":["飲食料品製造業全般"],"外食業":["外食業全般"],"林業":["林業"],"木材産業":["木材産業"],"リネンサプライ":["リネンサプライ"],"物流倉庫":["物流倉庫"],"資源循環":["資源循環"]};
@@ -1584,6 +1664,11 @@ function openModal(cfg){
   drawModal();
 }
 function closeModal(force){
+  if(force){clearTimeout(AS.t);AS.pendingFn=null;}
+  else if(M&&!M.isNew&&AS.pendingFn){autoFlush().then(function(){closeModal0(false);});return;}
+  closeModal0(force);
+}
+function closeModal0(force){
   if(!force&&M&&M.dirty&&!confirm('保存していない変更があります。閉じますか？'))return;
   M=null;$('xModal').hidden=true;$('xOverlay').hidden=true;document.body.style.overflow='';$('xModal').innerHTML='';
 }
@@ -1593,11 +1678,28 @@ function drawModal(scrollKeep){
   el.innerHTML='<div class="xm-head"><div><div class="dtitle">'+esc(M.title())+'</div><div class="sub">'+(M.subtitle?M.subtitle():'')+'</div></div><button class="btn btn-sm" data-xclose="1">閉じる</button></div>'+
     '<div class="xm-tabs">'+M.tabs.filter(function(x){return !x.hide||!x.hide();}).map(function(x){return '<button class="xm-tab'+(x.k===M.tab?' on':'')+'" data-xtab="'+x.k+'">'+esc(x.l)+(x.badge?x.badge():'')+'</button>';}).join('')+'</div>'+
     '<div class="xm-body">'+t.html(M.dr)+'</div>'+
-    '<div class="xm-foot"><div>'+(M.del&&!M.isNew?'<button class="btn btn-danger" data-xdel="1">削除</button>':'')+(M.footLeft?M.footLeft():'')+'</div><div class="toolbar"><span class="sub">'+(M.footNote?M.footNote():'')+'</span>'+(M.save?'<button class="btn" data-xclose="1">やめる</button><button class="btn btn-primary" data-xsave="1">保存する</button>':'')+'</div></div>';
+    '<div class="xm-foot"><div>'+(M.del&&!M.isNew?'<button class="btn btn-danger" data-xdel="1">削除</button>':'')+(M.footLeft?M.footLeft():'')+'</div><div class="toolbar"><span class="sub">'+(M.footNote?M.footNote():'')+'</span>'+(M.save?(M.isNew?'<button class="btn" data-xclose="1">やめる</button><button class="btn btn-primary" data-xsave="1">保存する</button>':'<span class="sub">変更は自動で保存されます（Ctrl+Z で取り消し）</span><button class="btn" data-xclose="1">閉じる</button>'):'')+'</div></div>';
   if(t.after)t.after(el.querySelector('.xm-body'),M.dr);
   if(scrollKeep)el.querySelector('.xm-body').scrollTop=st;
 }
 function modalHandler(e){
+  modalHandler0(e);
+  if(M&&M.dirty&&!M.isNew&&M.save&&!(e.type==='click'&&e.target.closest('[data-xclose],[data-xdel],[data-xtab]')))mAuto();
+}
+function mAuto(){autoSave(modalSaveSilent);}
+unProviders.unshift(function(){if(M&&M.dr&&!S&&$('xModal')&&!$('xModal').hidden)return {o:M,get:function(){return JSON.stringify(M.dr);},set:function(j){M.dr=JSON.parse(j);M.dirty=true;drawModal(true);if(!M.isNew)mAuto();}};return null;});
+function autoMerge(kind,row){ /* 保存のときにシステムが付けた値（管理番号など）を、入力中の画面に反映する */
+  var fr=draftFrom(kind,row),dr=M.dr;
+  Object.keys(fr).forEach(function(k){var cur=dr[k],nv=fr[k];var empty=function(v){return v==null||v===''||(Array.isArray(v)&&!v.length);};
+    if(empty(cur)&&!empty(nv)){dr[k]=nv;var o=$('xModal').querySelector('[data-k="'+k+'"]');if(o&&o.tagName!=='DIV'&&o!==document.activeElement){if(o.type==='checkbox')o.checked=!!nv;else o.value=nv;}}});
+}
+async function modalSaveSilent(){
+  if(!M||M.isNew||!M.save)return;
+  M._snap=JSON.stringify(M.dr);
+  await M.save();
+  if(M&&M.dirty&&!AS.fail)mAuto();
+}
+function modalHandler0(e){
   if(!M)return;var el=e.target;
   if(e.type==='click'){
     var b=el.closest('button,[data-xtab]');if(!b)return;
@@ -1631,13 +1733,16 @@ function modalHandler(e){
   $('xModal').querySelectorAll('[data-k="'+k5+'"]').forEach(function(o){if(o===el||o.tagName==='DIV')return;if(o.type==='checkbox')o.checked=val;else o.value=val;});
   if(M.onField)M.onField(k5,e.type);
 }
-function focusField(k){setTimeout(function(){var el=$('xModal').querySelector('[data-fk="'+k+'"]');if(!el)return;el.scrollIntoView({block:'center'});el.classList.add('flash');setTimeout(function(){el.classList.remove('flash');},1600);var i=el.querySelector('input,select,textarea');if(i)i.focus();},30);}
+function focusField(k){if(window.__AUTO)return;setTimeout(function(){var el=$('xModal').querySelector('[data-fk="'+k+'"]');if(!el)return;el.scrollIntoView({block:'center'});el.classList.add('flash');setTimeout(function(){el.classList.remove('flash');},1600);var i=el.querySelector('input,select,textarea');if(i)i.focus();},30);}
 
 /* ---------- 小さな入力画面（予定・面談記録など） ---------- */
 var S=null;
 function openSmall(cfg){S=cfg;$('xSmall').hidden=false;$('xOverlay2').hidden=false;drawSmall();}
-function closeSmall(){S=null;$('xSmall').hidden=true;$('xOverlay2').hidden=true;$('xSmall').innerHTML='';}
-function drawSmall(){if(!S)return;var o0=$('xSmall'),el=o0.cloneNode(false);o0.parentNode.replaceChild(el,o0);el.innerHTML='<div class="xm-head"><div class="dtitle">'+esc(S.title)+'</div><button class="btn btn-sm" data-sclose="1">閉じる</button></div><div class="xs-body">'+S.html()+'</div><div class="xm-foot"><div>'+(S.left?S.left():'')+'</div><div class="toolbar">'+(S.right?S.right():'<button class="btn" data-sclose="1">やめる</button><button class="btn btn-primary" data-ssave="1">保存する</button>')+'</div></div>';if(S.after)S.after(el);}
+function closeSmall(){
+  if(S&&S.auto&&AS.pendingFn){autoFlush().then(closeSmall0);return;}
+  closeSmall0();}
+function closeSmall0(){S=null;$('xSmall').hidden=true;$('xOverlay2').hidden=true;$('xSmall').innerHTML='';}
+function drawSmall(){if(!S)return;var o0=$('xSmall'),el=o0.cloneNode(false);o0.parentNode.replaceChild(el,o0);el.innerHTML='<div class="xm-head"><div class="dtitle">'+esc(S.title)+'</div><button class="btn btn-sm" data-sclose="1">閉じる</button></div><div class="xs-body">'+S.html()+'</div><div class="xm-foot"><div>'+(S.left?S.left():'')+'</div><div class="toolbar">'+(S.right?S.right():(S.auto?'<span class="sub">変更は自動で保存されます</span><button class="btn" data-sclose="1">閉じる</button>':'<button class="btn" data-sclose="1">やめる</button><button class="btn btn-primary" data-ssave="1">保存する</button>'))+'</div></div>';if(S.after)S.after(el);}
 
 /* ================= 所属機関 ================= */
 var PREF_RE=/^(北海道|東京都|(?:京都|大阪)府|[^\s\d]{2,3}県)/;
@@ -1732,7 +1837,7 @@ async function saveCompany(){
     if(!M.isNew){var labels={},logs=[];KF.companies.forEach(function(f){labels[f[0]]=f[1];});
       Object.keys(labels).forEach(function(k){if(k==='company_notes')return;if(!same(old[k],row[k]))logs.push({company_id:row.id,changed_by:myName(),field_name:k,field_label:labels[k],old_value:old[k]==null?'':(typeof old[k]==='object'?JSON.stringify(old[k]):String(old[k])),new_value:row[k]==null?'':(typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k]))});});
       if(logs.length)db().from('company_change_log').insert(logs).then(function(){});}
-    replaceIn(D.co,row);M.isNew=false;M.orig=JSON.parse(JSON.stringify(row));M.dr=draftFrom('companies',row);M.dirty=false;toast('保存しました');drawModal(true);rerender();
+    replaceIn(D.co,row);M.isNew=false;M.orig=JSON.parse(JSON.stringify(row));if(window.__AUTO){autoMerge('companies',row);M.dirty=JSON.stringify(M.dr)!==M._snap;toast('保存しました');rerender();return;}M.dr=draftFrom('companies',row);M.dirty=false;toast('保存しました');drawModal(true);rerender();
   }catch(e){toast('保存できませんでした：'+(e.message||''));}
 }
 async function deleteCompany(){
@@ -1930,7 +2035,7 @@ async function saveWorker(){
   try{
     var row=M.isNew?await q1(db().from('workers').insert(p).select().single()):await q1(db().from('workers').update(p).eq('id',dr.id).select().single());
     replaceIn(D.wk,row);await syncWorkerToSchedules(row);
-    M.isNew=false;M.orig=JSON.parse(JSON.stringify(row));M.dr=draftFrom('workers',row);M.dirty=false;toast('保存しました');drawModal(true);rerender();
+    M.isNew=false;M.orig=JSON.parse(JSON.stringify(row));if(window.__AUTO){autoMerge('workers',row);M.dirty=JSON.stringify(M.dr)!==M._snap;toast('保存しました');rerender();return;}M.dr=draftFrom('workers',row);M.dirty=false;toast('保存しました');drawModal(true);rerender();
   }catch(e){toast('保存できませんでした：'+(e.message||''));}
 }
 async function deleteWorker(){
@@ -1976,7 +2081,7 @@ function meetingsHtml(ctx){
 function openMeeting(id,preset){
   var row=id?byId(D.mt,id):Object.assign({kind:'定期面談',meeting_date:today(),memo:MEMO_TPL,staff_name:myName(),worker_ids:[]},preset||{});if(!row)return;
   var d=JSON.parse(JSON.stringify(row));
-  openSmall({title:id?'面談記録':'面談記録を追加',d:d,
+  openSmall({title:id?'面談記録':'面談記録を追加',d:d,auto:!!id,
     html:function(){var co=coOf(d.company_id),ws=D.wk.filter(function(w){return w.company_id===d.company_id&&!isPast(w);}),k=d.kind||'定期面談',fy=fiscalOf(d.meeting_date);
       return '<div class="xg">'+
         '<div class="xf wide"><label>項目</label><div class="toolbar">'+MEETING_KINDS.map(function(x){return '<label class="chk" title="'+esc(x.d)+'"><input type="radio" name="mk" value="'+esc(x.k)+'"'+(k===x.k?' checked':'')+' data-m="kind"> '+esc(x.k)+'</label>';}).join('')+'</div></div>'+
@@ -1990,13 +2095,14 @@ function openMeeting(id,preset){
         '<div class="xf wide"><label>相談内容</label><textarea data-m="memo" rows="6">'+esc(d.memo||'')+'</textarea></div>'+
         '<div class="xf wide"><label>対応結果</label><textarea data-m="result_memo" rows="4">'+esc(d.result_memo||'')+'</textarea></div></div>'+
         (d.schedule_id?'<div class="hint">この記録は支援スケジュールの定期面談とつながっています。相談内容は予定のメモにも反映されます。</div>':'');},
-    after:function(el){el.querySelectorAll('[data-m]').forEach(function(i){i.addEventListener(i.tagName==='SELECT'||i.type==='radio'?'change':'input',function(){var k=i.dataset.m;if(k==='worker')d.worker_ids=i.value?[i.value]:[];else d[k]=i.value;if(k==='meeting_date'){var f=fiscalOf(d.meeting_date);d.fiscal_year=f.y;d.quarter=f.q;}if(k==='kind'||k==='company_id'||k==='meeting_date')drawSmall();});});
+    after:function(el){if(id){var ma=function(e){if(e.target.closest('[data-m]'))autoSave(function(){return saveMeeting(d,false);});};el.addEventListener('input',ma);el.addEventListener('change',ma);}
+      el.querySelectorAll('[data-m]').forEach(function(i){i.addEventListener(i.tagName==='SELECT'||i.type==='radio'?'change':'input',function(){var k=i.dataset.m;if(k==='worker')d.worker_ids=i.value?[i.value]:[];else d[k]=i.value;if(k==='meeting_date'){var f=fiscalOf(d.meeting_date);d.fiscal_year=f.y;d.quarter=f.q;}if(k==='kind'||k==='company_id'||k==='meeting_date')drawSmall();});});
       el.querySelector('.xm-foot').addEventListener('click',async function(e){var b=e.target.closest('button');if(!b)return;if(b.dataset.sclose){closeSmall();return;}
         if(b.dataset.mdel){if(!confirm('この面談記録を削除しますか？'))return;var r0=await db().from('company_meetings').delete().eq('id',d.id).select('id');if(r0.error){toast('削除できませんでした');return;}if(!r0.data||!r0.data.length){toast('削除は管理者だけができます（監査の記録を守るため）。管理者に依頼してください');return;}D.mt=D.mt.filter(function(x){return x.id!==d.id;});closeSmall();toast('削除しました');afterChange();return;}
         if(b.dataset.ssave||b.dataset.snext){await saveMeeting(d,!!b.dataset.snext);}});
       el.querySelector('.xm-head').addEventListener('click',function(e){if(e.target.closest('[data-sclose]'))closeSmall();});},
     left:function(){return id&&canDel()?'<button class="btn btn-danger" data-mdel="1">削除</button>':'';},
-    right:function(){return '<button class="btn" data-sclose="1">やめる</button>'+(id?'':'<button class="btn" data-snext="1">保存して次の人材を記録</button>')+'<button class="btn btn-primary" data-ssave="1">保存する</button>';}
+    right:function(){return id?'<span class="sub">変更は自動で保存されます</span><button class="btn" data-sclose="1">閉じる</button>':'<button class="btn" data-sclose="1">やめる</button><button class="btn" data-snext="1">保存して次の人材を記録</button><button class="btn btn-primary" data-ssave="1">保存する</button>';}
   });
 }
 async function saveMeeting(d,next){
@@ -2010,7 +2116,7 @@ async function saveMeeting(d,next){
     if(row.schedule_id){var r2=await db().from('support_schedules').update({notes:row.memo,updated_at:nowIso(),updated_by:myName()}).eq('id',row.schedule_id).select().single();if(r2.data)replaceIn(D.sc,r2.data);}
     toast('面談記録を保存しました');
     if(next){var keep={kind:d.kind,meeting_date:d.meeting_date,company_id:d.company_id,staff_name:d.staff_name,event_method:d.event_method,contact_name:d.contact_name,fiscal_year:d.fiscal_year,quarter:d.quarter};closeSmall();openMeeting(null,Object.assign(keep,{memo:MEMO_TPL,worker_ids:[]}));}
-    else closeSmall();
+    else if(!window.__AUTO)closeSmall();
     afterChange();
   }catch(e){toast('保存できませんでした：'+(e.message||''));}
 }
@@ -2105,7 +2211,7 @@ function openSched(id,preset){
   if(!d.company_id&&d.worker_id){var w0=byId(D.wk,d.worker_id);if(w0)d.company_id=w0.company_id;}
   d.monthOnly=!!(row&&!row.scheduled_at&&row.plan_ym);d._cq='';d._wq='';
   var mt=row?D.mt.filter(function(m){return m.schedule_id===row.id;})[0]:null;d.memo=mt?mt.memo:(row&&row.event_type==='periodic_meeting'?row.notes:'');d.result=mt?mt.result_memo:'';
-  openSmall({title:id?'予定を編集':'予定を登録',
+  openSmall({title:id?'予定を編集':'予定を登録',auto:!!id,
     html:function(){
       var isNew=!id,per=d.event_type==='periodic_meeting';
       var cos=D.co.filter(function(c){return !d._cq||norm(c.name).indexOf(norm(d._cq))>=0;}).sort(byFolder);
@@ -2129,6 +2235,7 @@ function openSched(id,preset){
            :'<div class="xf wide"><label>メモ</label><textarea data-s="notes" rows="3">'+esc(d.notes||'')+'</textarea></div>')+
        '</div>';},
     after:function(el){
+      if(id){var sa=function(e){var k=e.target.dataset&&e.target.dataset.s;if(k&&k.charAt(0)==='_')return;if(!e.target.closest('[data-s],[data-r],[data-rp],[data-staff],[data-wid]'))return;autoSave(function(){return saveSched(d,false);});};el.addEventListener('input',sa);el.addEventListener('change',sa);}
       el.querySelectorAll('[data-s]').forEach(function(i){var k=i.dataset.s;i.addEventListener(i.tagName==='SELECT'||i.type==='checkbox'?'change':'input',function(){
         var v=i.type==='checkbox'?i.checked:i.value;
         if(k==='event_type'&&v==='periodic_meeting'&&d.notes&&!d.memo)d.memo=d.notes;
@@ -2193,7 +2300,7 @@ async function saveSched(d,isNew){
   else if(HOURS_MIN[d.event_type]&&d.record&&d.record.method&&METHODS_STRICT.indexOf(d.record.method)<0){toast('「'+d.record.method+'」は認められません。対面・訪問・オンラインのどれかを選んでください');return;}
   var base={event_type:d.event_type,event_method:per?(d.event_method||null):null,scheduled_at:d.monthOnly?null:d.scheduled_at,plan_ym:d.monthOnly?d.plan_ym:null,all_day:!!d.all_day,start_time:d.all_day?null:(d.start_time||null),end_time:d.all_day?null:(d.end_time||null),status:d.status||'planned',completed_at:d.status==='done'&&!d.monthOnly?d.scheduled_at:null,notes:per?(d.memo||null):(d.notes||null),staff_names:d.staff_names||[],other_label:d.event_type==='other_support'?(d.other_label||null):null,place:d.place||null,interpreter:d.interpreter||null,record:d.record||{},updated_at:nowIso(),updated_by:myName()};
   try{
-    if(!isNew){var row=await q1(db().from('support_schedules').update(Object.assign(base,{worker_id:d.worker_id,company_id:d.company_id||(byId(D.wk,d.worker_id)||{}).company_id||null})).eq('id',d.id).select().single());replaceIn(D.sc,row);if(!d.monthOnly)await syncScheduleToWorker(row);await saveSchedMeeting(row,d.memo,d.result);toast('更新しました');closeSmall();afterChange();return;}
+    if(!isNew){var row=await q1(db().from('support_schedules').update(Object.assign(base,{worker_id:d.worker_id,company_id:d.company_id||(byId(D.wk,d.worker_id)||{}).company_id||null})).eq('id',d.id).select().single());replaceIn(D.sc,row);if(!d.monthOnly)await syncScheduleToWorker(row);await saveSchedMeeting(row,d.memo,d.result);toast('更新しました');if(!window.__AUTO)closeSmall();afterChange();return;}
     var skip=[],made=0;
     for(var i=0;i<wids.length;i++){var w=byId(D.wk,wids[i])||{};
       var dup=D.sc.some(function(s){return s.worker_id===wids[i]&&s.event_type===d.event_type&&(d.monthOnly?(!s.scheduled_at&&s.plan_ym===d.plan_ym):s.scheduled_at===d.scheduled_at);});
@@ -2316,7 +2423,7 @@ async function saveJob(){
   p.updated_at=nowIso();p.updated_by=myName();
   try{
     var row=M.isNew?await q1(db().from('job_progress').insert(p).select().single()):await q1(db().from('job_progress').update(p).eq('id',old.id).select().single());
-    replaceIn(D.jobs,row);M.isNew=false;M.orig=JSON.parse(JSON.stringify(row));M.dr=draftFrom('jobs',row);M.dirty=false;toast(JOB_PAST.indexOf(row.progress)>=0?'保存しました（過去の求人に移りました）':'保存しました');drawModal(true);rerender();
+    replaceIn(D.jobs,row);M.isNew=false;M.orig=JSON.parse(JSON.stringify(row));if(window.__AUTO){autoMerge('jobs',row);M.dirty=JSON.stringify(M.dr)!==M._snap;toast('保存しました');rerender();return;}M.dr=draftFrom('jobs',row);M.dirty=false;toast(JOB_PAST.indexOf(row.progress)>=0?'保存しました（過去の求人に移りました）':'保存しました');drawModal(true);rerender();
   }catch(e){toast('保存できませんでした：'+(e.message||''));}
 }
 async function deleteJob(){
@@ -2442,7 +2549,7 @@ async function saveCand(){
     var row=M.isNew?await q1(db().from('candidates').insert(p).select().single()):await q1(db().from('candidates').update(p).eq('id',dr.id).select().single());
     replaceIn(D.cands,row);
     if(!M.isNew&&!same(old.status,row.status)){await db().from('candidate_job_progress').update({status:row.status,updated_at:nowIso(),updated_by:myName()}).eq('candidate_id',row.id);D.cjp.forEach(function(x){if(x.candidate_id===row.id)x.status=row.status;});}
-    M.isNew=false;M.orig=JSON.parse(JSON.stringify(row));M.dr=draftFrom('candidates',row);M.dirty=false;toast('保存しました');drawModal(true);rerender();
+    M.isNew=false;M.orig=JSON.parse(JSON.stringify(row));if(window.__AUTO){autoMerge('candidates',row);M.dirty=JSON.stringify(M.dr)!==M._snap;toast('保存しました');rerender();return;}M.dr=draftFrom('candidates',row);M.dirty=false;toast('保存しました');drawModal(true);rerender();
   }catch(e){toast('保存できませんでした：'+(e.message||''));}
 }
 async function deleteCand(){

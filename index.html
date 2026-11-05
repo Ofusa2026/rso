@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.19 -->
+<!-- RSO_VERSION ver.20261105.20 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -224,6 +224,7 @@ details.hg .form{grid-template-columns:200px minmax(0,1fr)}
 .mk{display:inline-block;margin-left:6px;padding:0 6px;border-radius:9px;font-size:10.5px;font-weight:700;vertical-align:1px}
 .mk.e{background:#fffaf0;color:#b7791f;border:1px solid #f6ad55}.mk.o{background:#f0fff4;color:#2f855a;border:1px solid #9ae6b4}
 .xm-body .x-empty{background:#fffbeb!important;border-color:#f6ad55!important}.xm-body .ms.x-empty{border:1px solid #f6ad55;border-radius:7px;padding:4px}
+.lk{color:#2b6cb0;text-decoration:none;font-weight:600}.lk:hover{text-decoration:underline}
 .xsc{font-size:11.5px;font-weight:700;margin-left:8px}.xsc.e{color:#b7791f}.xsc.o{color:#2f855a}
 .xsum{font-size:13px;margin:0 0 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.xsum .bar{flex:0 0 140px;height:8px;border-radius:4px;background:#edf2f7;overflow:hidden}.xsum .bar i{display:block;height:100%;background:#48bb78}
 .mp-grid .mpc{font-size:11.5px;font-weight:700;margin-left:6px}.mp-grid .mpc.e{color:#b7791f}.mp-grid .mpc.o{color:#2f855a}
@@ -409,7 +410,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.19</div>
+      <div class="ver">ver.20261105.20</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -3680,7 +3681,11 @@ function pages44(lg){
   }
   return pages;
 }
-function todokeClick(e){var b=e.target.closest('button');if(!b)return;
+function lkW(w){return '<a href="#" class="lk" data-ow="'+esc(w.id)+'">'+esc(w.name||'')+'</a>';}
+function lkC(id,name){return id?'<a href="#" class="lk" data-oc="'+esc(id)+'">'+esc(name||coName(id))+'</a>':esc(name||'');}
+function todokeClick(e){
+  var lk=e.target.closest('[data-ow],[data-oc]');if(lk){e.preventDefault();if(lk.dataset.ow)openWorker(lk.dataset.ow);else openCompany(lk.dataset.oc);return;}
+  var b=e.target.closest('button');if(!b)return;
   if(b.dataset.prep){var pp=b.dataset.prep.split('|'),pw=byId(D.wk,pp[1]);if(pw)printForm(pp[0],{worker:pw});return;}
   if(b.dataset.osched){openSched(b.dataset.osched);return;}
   if(b.dataset.nsched){var nw=byId(D.wk,b.dataset.pw)||{};openSched(null,{worker_id:nw.id,company_id:nw.company_id,event_type:b.dataset.nsched});return;}
@@ -3715,7 +3720,7 @@ function renderMeeting(){
     '<button class="btn btn-sm'+(VM.all?'':' btn-primary')+'" id="mAll">'+(VM.all?'要対応だけに絞る':'すべての人を表示（'+all.length+'名）')+'</button>'+
     '<span class="sub">要対応 <b>'+need.length+'名</b>（うち期限切れ・予定なし <b style="color:#c53030">'+over+'名</b>）　全体 '+all.length+'名</span></div>'+
     (rows.length?'<table class="tbl"><thead>'+th(['人材','所属機関','最後の面談','次の期限（3か月）','予定','状態','操作'])+'</thead><tbody>'+rows.map(function(m){var st=meetState(m);
-      return '<tr><td>'+esc(m.w.name||'')+'</td><td>'+esc(coName(m.w.company_id))+'</td><td class="num">'+(m.last?esc(ymdj(m.last)):'<span class="sub">まだ（支援開始日から数えます）</span>')+'</td><td class="num">'+esc(ymdj(m.due))+'</td><td class="num">'+(m.plan?esc(ymdj(m.plan)):'')+'</td><td>'+pill(st[1],st[0])+'</td><td style="white-space:nowrap"><button class="btn btn-sm" data-nsched="periodic_meeting" data-pw="'+esc(m.w.id)+'">面談を登録</button> <button class="btn btn-sm" data-prep="5-5|'+esc(m.w.id)+'">5-5 出力</button> <button class="btn btn-sm" data-prep="5-6|'+esc(m.w.id)+'">5-6 出力</button></td></tr>';}).join('')+'</tbody></table><div class="hint">「5-5 出力」（外国人用）「5-6 出力」（監督者用）は、いちばん新しい面談の記録で定期面談報告書を出します。面談のあと、予定の画面で「実施済」にして記入すると、内容が入ります。</div>':
+      return '<tr><td>'+lkW(m.w)+'</td><td>'+lkC(m.w.company_id)+'</td><td class="num">'+(m.last?esc(ymdj(m.last)):'<span class="sub">まだ（支援開始日から数えます）</span>')+'</td><td class="num">'+esc(ymdj(m.due))+'</td><td class="num">'+(m.plan?esc(ymdj(m.plan)):'')+'</td><td>'+pill(st[1],st[0])+'</td><td style="white-space:nowrap"><button class="btn btn-sm" data-nsched="periodic_meeting" data-pw="'+esc(m.w.id)+'">面談を登録</button> <button class="btn btn-sm" data-prep="5-5|'+esc(m.w.id)+'">5-5 出力</button> <button class="btn btn-sm" data-prep="5-6|'+esc(m.w.id)+'">5-6 出力</button></td></tr>';}).join('')+'</tbody></table><div class="hint">「5-5 出力」（外国人用）「5-6 出力」（監督者用）は、いちばん新しい面談の記録で定期面談報告書を出します。面談のあと、予定の画面で「実施済」にして記入すると、内容が入ります。</div>':
       '<div class="empty">'+(all.length?(q?'該当する人材がいません':'期限切れ・期限が近い人はいません（すべての人を見るには上のボタン）'):'支援開始日が入っている人材がいません')+'</div>')+'</div>';
 }
 function renderTodoke(){
@@ -3727,7 +3732,7 @@ function renderTodoke(){
   h+='<div class="xsec"><div class="xsec-t">① 特異事案の報告（参考様式第4-3号）　<span class="sub">把握してから14日以内</span> <button class="btn btn-sm btn-primary" data-newinc="1" style="margin-left:8px">＋ 特異事案を登録</button></div>'+
     '<div class="hint">次のどれかを記録すると、ここに並びます。支援を実施しなかった記録／転職支援の記録／相談から労基署・ハローワーク等へ相談・通報した記録（「通報・相談した行政機関」に入力）／行方不明・死亡・基準不適合などの特異事案。支援の全部を委託されているときは、登録支援機関が4-3を出します（一部だけの委託なら所属機関が3-7を出します）。</div>'+
     (inc.length?'<table class="tbl"><thead>'+th(['発生日','人材（所属機関）','種類','報告の期限','状態','添付する書類','操作'])+'</thead><tbody>'+inc.map(function(it){var st=incState(it),at=incAttach(it);
-      return '<tr><td class="num">'+esc(ymdj(it.d))+'</td><td>'+esc(it.w.name||'')+'<div class="sub">'+esc(coName(it.s.company_id||it.w.company_id))+'</div></td><td>'+esc(incKind(it))+'</td><td class="num">'+esc(ymdj(it.due))+'</td><td>'+pill(st[1],st[0])+(it.filed?'<div class="sub">'+esc(ymdj(it.filed))+'</div>':'')+'</td><td style="font-size:12px">'+at.map(esc).join('<br>')+'</td>'+
+      return '<tr><td class="num">'+esc(ymdj(it.d))+'</td><td>'+lkW(it.w)+'<div class="sub">'+lkC(it.s.company_id||it.w.company_id)+'</div></td><td>'+esc(incKind(it))+'</td><td class="num">'+esc(ymdj(it.due))+'</td><td>'+pill(st[1],st[0])+(it.filed?'<div class="sub">'+esc(ymdj(it.filed))+'</div>':'')+'</td><td style="font-size:12px">'+at.map(esc).join('<br>')+'</td>'+
         '<td style="white-space:nowrap"><button class="btn btn-sm" data-osched="'+esc(it.s.id)+'">記録を開く</button> <button class="btn btn-sm" data-pdoc="43|'+esc(it.s.id)+'">4-3を出力</button>'+(incDocPages(it,'att')?' <button class="btn btn-sm" data-pdoc="att|'+esc(it.s.id)+'">添付書類を出力</button>':'')+(it.filed?'':' <button class="btn btn-sm btn-primary" data-inc43="'+esc(it.s.id)+'">提出済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">該当する記録はありません</div>')+'</div>';
   /* ③ 変更届出 */
   var chg=tlog().filter(function(l){return l.kind==='change';}).slice().reverse();
@@ -3739,7 +3744,7 @@ function renderTodoke(){
   var stf=tlog().filter(function(l){return l.kind==='staff';}).slice().reverse();
   h+='<div class="xsec"><div class="xsec-t">③ 支援責任者・支援担当者の変更　<span class="sub">所属機関ごとのメイン担当・サブ担当が変わったときに記録されます。登録支援機関からの届出は不要。ただし所属機関が「支援計画の変更届出」を出します</span></div>'+
     (stf.length?'<table class="tbl"><thead>'+th(['変更した日','所属機関','内容','所属機関への連絡','操作'])+'</thead><tbody>'+stf.map(function(l){
-      return '<tr><td class="num">'+esc(ymdj(l.at))+'<div class="sub">'+esc(l.by||'')+'</div></td><td>'+esc(l.co||(coOf(l.company_id)||{}).name||'（所属機関の指定なし）')+'</td><td>'+(l.add&&l.add.length?'追加：'+esc(l.add.join('、')):'')+(l.add&&l.add.length&&l.del&&l.del.length?'<br>':'')+(l.del&&l.del.length?'外れた人：'+esc(l.del.join('、')):'')+'</td><td>'+(l.notified?pill('ok','連絡済み '+ymdj(l.notified)):pill('warn','未連絡'))+'</td><td>'+(l.notified||!adm?'':'<button class="btn btn-sm btn-primary" data-tlstaff="'+esc(l.id)+'">連絡済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>'+
+      return '<tr><td class="num">'+esc(ymdj(l.at))+'<div class="sub">'+esc(l.by||'')+'</div></td><td>'+(l.company_id&&coOf(l.company_id)?lkC(l.company_id,l.co):esc(l.co||'（所属機関の指定なし）'))+'</td><td>'+(l.add&&l.add.length?'追加：'+esc(l.add.join('、')):'')+(l.add&&l.add.length&&l.del&&l.del.length?'<br>':'')+(l.del&&l.del.length?'外れた人：'+esc(l.del.join('、')):'')+'</td><td>'+(l.notified?pill('ok','連絡済み '+ymdj(l.notified)):pill('warn','未連絡'))+'</td><td>'+(l.notified||!adm?'':'<button class="btn btn-sm btn-primary" data-tlstaff="'+esc(l.id)+'">連絡済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>'+
       '<div class="hint">該当の所属機関に、支援責任者・支援担当者が変わったことを伝え、支援計画の変更届出を出してもらってください。</div>':'<div class="empty">記録された変更はありません</div>')+'</div>';
   el.innerHTML=h;el.dataset.built='1';
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.8 -->
+<!-- RSO_VERSION ver.20261105.9 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -388,7 +388,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.8</div>
+      <div class="ver">ver.20261105.9</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1117,7 +1117,7 @@ async function renderMypage(){
 function todokeDiff(before,after){
   var out=[],sh=function(v){if(Array.isArray(v))return v.map(function(r){return Object.keys(r).map(function(k){return r[k];}).filter(Boolean).join(' ');}).filter(Boolean).join(' ／ ');return String(v==null?'':v);};
   PROFILE_SECS.forEach(function(S){S.f.forEach(function(f){if(f.todoke&&String(before[f.k]||'')!==String(after[f.k]||''))out.push({l:f.l,old:sh(before[f.k]),nw:sh(after[f.k])});});});
-  PROFILE_ROWS.forEach(function(R){if(R.todoke&&JSON.stringify(before[R.k]||[])!==JSON.stringify(after[R.k]||[]))out.push({l:R.t,old:sh(before[R.k]),nw:sh(after[R.k])});});
+  PROFILE_ROWS.forEach(function(R){if(R.todoke&&JSON.stringify(before[R.k]||[])!==JSON.stringify(after[R.k]||[]))out.push({l:R.t,old:sh(before[R.k]),nw:sh(after[R.k]),oldRaw:JSON.parse(JSON.stringify(before[R.k]||[])),nwRaw:JSON.parse(JSON.stringify(after[R.k]||[]))});});
   return out;
 }
 function staffNameList(p){return (p.staff||[]).map(function(x){return String(x.name||'').trim();}).filter(Boolean);}
@@ -3064,7 +3064,7 @@ var HOURS_MIN={pre_guidance:3,life_orientation:8};
 var METHODS_STRICT=['対面','訪問','オンライン'];
 function recMethodsFor(t,cur){var l=HOURS_MIN[t]?METHODS_STRICT:REC_METHODS;if(cur&&l.indexOf(cur)<0)l=l.concat([cur]);return l;}
 var REC_F={
-  incident:[['ikind','事案の種類','sel',['行方不明','死亡','基準不適合を把握した','行政機関に相談・通報した','その他']],['detail','事案の内容','area','いつ・どこで・何があったか'],['actions','対応した内容','area','本人の保護、所属機関への通知、関係機関への通報 など'],['report_to','通報・相談した行政機関（ある場合）']],
+  incident:[['ikind','事案の種類','sel',['行方不明','死亡','基準不適合を把握した','職業生活上の問題を把握した','日常生活上の問題を把握した','社会生活上の問題を把握した','行政機関に相談・通報した','その他']],['detail','事案の内容','area','いつ・どこで・何があったか'],['actions','対応した内容','area','本人の保護、所属機関への通知、関係機関への通報 など'],['report_to','通報・相談した行政機関（ある場合）'],['measure','措置内容（4-3 Bのd）','sel',['問題解決（解決見込み含む）','問題解決困難','問題解決不可能']],['measure_note','困難・不可能の理由','area']],
   pre_guidance:[['hours','実施時間（時間）　3時間以上','num','例：3 ／ 3.5'],['lang','使用言語'],['content','説明した内容','area','雇用契約の内容・報酬・業務内容・入国手続・保証金や違約金の有無・費用負担 など']],
   entry:[['airport','空港・港'],['transport','送迎の方法','','社用車で事業所・住居まで 等'],['content','内容・メモ','area']],
   final_return:[['airport','空港・港'],['transport','送迎の方法'],['content','内容・メモ','area','保安検査場まで同行 等']],
@@ -3075,9 +3075,9 @@ var REC_F={
   jp_study:[['provider','学習の機会','','日本語教室・オンライン講座・教材の提供 等'],['content','内容','area']],
   consult:[['ckind','区分','sel',['相談','苦情']],['ctopic','相談・苦情の内容','area'],['answer','対応した内容・結果','area'],['report','通報・相談した行政機関（ある場合）']],
   exchange:[['event','行事・交流の名称','','地域のお祭り・自治会行事 等'],['content','内容','area']],
-  job_change:[['reason','離職の理由（非自発的）'],['candidates','転職先の候補・紹介先','area'],['hellowork','ハローワーク等への同行'],['content','その他の支援内容','area','推薦状の作成・求職活動の有給休暇 など']],
+  job_change:[['reason','離職の理由（非自発的）'],['candidates','転職先の候補・紹介先','area'],['hellowork','ハローワーク等への同行'],['hw_date','公共職業安定所への相談日','date'],['hw_name','相談した公共職業安定所の名称'],['result','対応結果（5-12）','area'],['content','その他の支援内容','area','推薦状の作成・求職活動の有給休暇 など']],
   periodic_meeting:[['supervisor','面談した監督者の氏名']],
-  not_done:[['target','実施しなかった支援','sel',['事前ガイダンス','出入国時の送迎','住居確保・生活に必要な契約','生活オリエンテーション','関係機関への同行','日本語学習の機会','相談・苦情','交流促進','転職支援','定期面談','その他']],['req_date','申出を受けた日','date'],['req_content','申出の内容','area','例：本人から「自分で手続きできるので同行不要」との申出']]
+  not_done:[['target','実施しなかった支援','sel',['事前ガイダンス','出入国時の送迎','住居確保・生活に必要な契約','生活オリエンテーション','関係機関への同行','日本語学習の機会','相談・苦情','交流促進','転職支援','定期面談','その他']],['req_date','申出を受けた日','date'],['req_content','申出の内容（4-3は20文字以内に切り詰め）','area','例：本人から「自分で手続きできるので同行不要」との申出'],['measure','措置内容（4-3 Aのd）','sel',['実施再開（再開見込み含む）','実施再開困難','実施再開不可能']],['measure_note','困難・不可能の理由','area']]
 };
 function recFields(d){
   var t=d.event_type;if(!t)return '';var B=BOOK_BY['ev:'+t],per=t==='periodic_meeting';d.record=d.record||{};
@@ -3410,26 +3410,133 @@ function incPairs(it){var r=rec(it.s),t=it.s.event_type;
   if(t==='job_change')return [['離職の理由',r.reason],['転職先の候補・紹介先',r.candidates],['ハローワーク等への同行',r.hellowork],['その他の支援内容',r.content]];
   if(t==='consult')return [['区分',r.ckind],['相談・苦情の内容',r.ctopic],['対応した内容・結果',r.answer],['相談・通報した行政機関',r.report]];
   return [['事案の種類',r.ikind],['事案の内容',r.detail],['対応した内容',r.actions],['通報・相談した行政機関',r.report_to]];}
+/* ---------- 公式様式の印刷：4-3 特異事案報告書／5-12 転職支援実施報告書／5-13 支援実施困難に係る理由書／5-19 基準不適合に係る説明書／4-4 登録事項変更の届出書別紙 ---------- */
+function cMark(t,on){return on?'<span style="border:1px solid #000;border-radius:50%;padding:0 4px">'+t+'</span>':t;}
+function sexMark(g){g=String(g||'');var m=/^(男|M)/i.test(g),f=/^(女|F)/i.test(g);return cMark('男',m)+' ・ '+cMark('女',f);}
+function cardBoxes(no){var d=String(no||'').replace(/[\s-]/g,'').slice(0,12).split(''),h='';for(var i=0;i<12;i++)h+='<td class="c" style="width:26px;height:24px">'+esc(d[i]||'')+'</td>';return '<table class="ft2" style="width:auto"><tr>'+h+'</tr></table>';}
+function trw(l,v,w){return '<tr><th style="width:'+(w||24)+'%">'+l+'</th><td colspan="3">'+v+'</td></tr>';}
+function trw2(a,b,c,d){return '<tr><th style="width:24%">'+a+'</th><td style="width:26%">'+b+'</td><th style="width:20%">'+c+'</th><td>'+d+'</td></tr>';}
+function zipAddr(zip,addr,tel){return '〒 '+esc(zip||'　　　－　　　　')+'<br>'+esc(addr||'')+'<div style="margin-top:3px">（電話　'+esc(tel||'　　　－　　　　－　　　　')+'　）</div>';}
+function whoOf(it){var staff=(it.s.staff_names||[])[0]||'',st=staffInfo(staff),o=orgPf();return {name:staff,title:st.title||st.kind||'',tel:o.pf.tel||''};}
+function wBase(w){return {en:w.name_en||w.name||'',gender:w.gender,birth:jd(w.birthdate),nat:w.nationality,card:w.residence_card};}
+function page513(it){
+  var w=it.w,b=wBase(w),c=coOf(it.s.company_id||w.company_id)||{},o=orgPf(),r=rec(it.s),who=whoOf(it);
+  var txt=[r.target?('実施しなかった支援：'+r.target):'',r.req_date?('申出を受けた日：'+jd(r.req_date)):'',r.req_content||'',r.measure?('措置内容：'+r.measure+(r.measure_note?'（'+r.measure_note+'）':'')):''].filter(Boolean).join('\n');
+  return '<div class="fno">参考様式第５－１３号</div><div class="ft">支援実施困難に係る理由書</div>'+
+   '<div class="sec">１　支援実施困難となった特定技能外国人</div><table class="ft2">'+trw2('氏名（ローマ字）',esc(b.en),'性　　別',sexMark(b.gender))+trw2('生年月日',esc(b.birth),'国籍・地域',esc(b.nat))+trw('在留カード番号',cardBoxes(b.card))+trw('特定技能所属機関',esc(c.name||''))+trw('機関の住所<br>（本店又は主たる事務所）',zipAddr(c.zip,c.address,c.tel))+'</table>'+
+   '<div class="sec">２　支援実施困難の内容及びその理由等</div><table class="ft2"><tr><th class="c">支援実施困難の内容及び理由等</th></tr><tr><td style="height:120px;vertical-align:top;white-space:pre-wrap">'+esc(txt)+'</td></tr></table>'+
+   '<table class="ft2" style="margin-top:6px"><tr><th style="width:34%">支援担当者又は委託を受けた実施担当者</th><td>'+esc((it.s.staff_names||[]).join('、'))+'</td></tr></table>'+
+   '<div style="margin-top:16px">特定技能所属機関又は支援委託を受けた登録支援機関の氏名又は名称　<span class="fill" style="min-width:18em">'+esc(o.name)+'</span></div>'+
+   '<div style="margin-top:6px">支援責任者又は支援担当者の氏名　<span class="fill" style="min-width:14em">'+esc(who.name)+'</span></div>'+
+   '<div style="margin-top:6px">電話番号　<span class="fill" style="min-width:12em">'+esc(who.tel)+'</span>　※</div>'+
+   '<div style="font-size:10.5px;margin-top:6px">※　本理由書に記載された内容等の確認のため、連絡させていただく場合があります。</div>'+
+   '<div style="font-size:10.5px;margin-top:10px">（注意）<br>１　２「支援実施困難の内容及び理由等」欄について、参考様式第３―７号「②届出の事由」又は４－３号「②報告の事由」のＡａ及びＢａでチェックした項目（参考様式第４－３号による報告の場合は「特定技能所属機関における基準不適合等の問題を把握」を除く。）について記載。<br>２　複数の特定技能外国人について、未実施の支援内容等が同一の場合には、氏名欄に「別紙のとおり」と記載した上、対象の特定技能外国人の氏名等を記載した別紙（任意様式）を添付することとしても差し支えない。</div>';
+}
+function page512(it){
+  var w=it.w,b=wBase(w),o=orgPf(),r=rec(it.s),who=whoOf(it),use=!!(r.hw_name||r.hw_date||r.hellowork);
+  var addr=w.jp_address||'';
+  var cont=[r.reason?('離職の理由：'+r.reason):'',r.candidates?('転職先の候補・紹介先：'+r.candidates):'',r.content||''].filter(Boolean).join('\n');
+  return '<div class="fno">参考様式第５－１２号</div><div class="ft">転職支援実施報告書</div>'+
+   '<div class="sec">１　非自発的離職時の転職支援の対象である特定技能外国人</div><table class="ft2">'+trw2('氏名（ローマ字）',esc(b.en),'性　　別',sexMark(b.gender))+trw2('生年月日',esc(b.birth),'国籍・地域',esc(b.nat))+trw('住　居　地',zipAddr(w.jp_zip||'',addr,w.cel_phone||w.phone||''))+trw('在留カード番号',cardBoxes(b.card))+'</table>'+
+   '<div class="sec">２　非自発的離職時の転職支援の内容及び対応結果</div><table class="ft2">'+trw('転職支援年月日',esc(jd(it.d)))+
+   '<tr><th>転職支援の内容</th><td style="height:90px;vertical-align:top;white-space:pre-wrap">'+esc(cont)+'</td></tr>'+
+   trw('公共職業安定所の利用の有無',chk(use)+'　利用あり　　　　'+chk(!use)+'　利用なし')+trw('公共職業安定所への相談日',esc(r.hw_date?jd(r.hw_date):'　　　　年　　月　　日'))+trw('相談を行った公共職業安定所の名称',esc(r.hw_name||r.hellowork||''))+
+   '<tr><th>対応結果</th><td style="height:70px;vertical-align:top;white-space:pre-wrap">'+esc(r.result||'')+'</td></tr>'+trw('対応者',esc((it.s.staff_names||[]).join('、')))+'</table>'+
+   '<div style="margin-top:16px">転職支援を実施した特定技能所属機関又は登録支援機関の氏名又は名称　<span class="fill" style="min-width:16em">'+esc(o.name)+'</span></div>'+
+   '<div style="margin-top:6px">転職支援を実施した支援責任者又は支援担当者の氏名　<span class="fill" style="min-width:14em">'+esc(who.name)+'</span></div>'+
+   '<div style="margin-top:6px">電話番号　<span class="fill" style="min-width:12em">'+esc(who.tel)+'</span>　※</div>'+
+   '<div style="font-size:10.5px;margin-top:6px">※　転職支援の内容等の確認のため、連絡させていただく場合があります。</div>';
+}
+function page519(it){
+  var w=it.w,c=coOf(it.s.company_id||w.company_id)||{},o=orgPf(),r=rec(it.s),who=whoOf(it);
+  return '<div class="fno">参考様式第５－１９号　　　　　　　　　　　　　　　　（登録支援機関作成用）</div><div class="ft">基準不適合に係る説明書</div>'+
+   '<table class="ft2">'+trw('報告対象の特定技能<br>所属機関',esc(c.name||''),22)+trw('機関の住所<br>（本店又は主たる事務所）',zipAddr(c.zip,c.address,c.tel),22)+
+   trw('事案の<br>発生年月日<div style="font-size:9.5px">（複数回発生した場合は、その全てについて記載すること。）</div>',esc(jd(it.d)),22)+
+   '<tr><th>基準不適合<br>の内容<div style="font-size:9.5px">（法令違反等の内容について具体的かつ簡潔に記載すること。）</div></th><td style="height:150px;vertical-align:top;white-space:pre-wrap">'+esc(r.detail||'')+'</td></tr>'+
+   '<tr><th>基準不適合の<br>対応結果等<div style="font-size:9.5px">（関係行政機関への対応含む）</div></th><td style="height:150px;vertical-align:top;white-space:pre-wrap">'+esc([r.actions||'',r.report_to?('通報・相談した行政機関：'+r.report_to):''].filter(Boolean).join('\n'))+'</td></tr></table>'+
+   '<div style="margin-top:14px">上記の記載内容は、事実と相違ありません。</div><div style="text-align:right;margin-top:6px">作成年月日　'+esc(jd(today()))+'</div>'+
+   '<div style="margin-top:8px">登録支援機関の氏名又は名称　<span class="fill" style="min-width:18em">'+esc(o.name)+'</span></div>'+
+   '<div style="margin-top:6px">作成者の氏名及び役職　<span class="fill" style="min-width:16em">'+esc([who.name,who.title].filter(Boolean).join('　'))+'</span></div>'+
+   '<div style="margin-top:6px">電話番号　<span class="fill" style="min-width:12em">'+esc(who.tel)+'</span>　※</div>'+
+   '<div style="font-size:10.5px;margin-top:6px">※ 本説明書に記載された内容等の確認のため、連絡させていただく場合があります。<br>（注意）基準不適合が解消された場合については、「基準不適合の対応結果等」欄にその旨記載すること。関係する資料があれば、当該資料についても添付すること。</div>';
+}
+var R43_ITEMS=[['事前ガイダンス','日本語学習の機会の提供'],['空港等への出迎え','相談・苦情対応'],['空港等への見送り','日本人との交流促進'],['住居の確保・生活に必要な契約に関する支援','非自発的離職時の転職支援'],['生活オリエンテーション','定期的な面談の実施'],['関係機関への同行その他必要な支援','']];
+var R43_MAP={'事前ガイダンス':['事前ガイダンス'],'出入国時の送迎':['空港等への出迎え','空港等への見送り'],'住居確保・生活に必要な契約':['住居の確保・生活に必要な契約に関する支援'],'生活オリエンテーション':['生活オリエンテーション'],'関係機関への同行':['関係機関への同行その他必要な支援'],'日本語学習の機会':['日本語学習の機会の提供'],'相談・苦情':['相談・苦情対応'],'交流促進':['日本人との交流促進'],'転職支援':['非自発的離職時の転職支援'],'定期面談':['定期的な面談の実施']};
+function pages43(it){
+  var w=it.w,b=wBase(w),o=orgPf(),r=rec(it.s),t=it.s.event_type,who=whoOf(it),isA=t==='not_done';
+  var on=isA?(R43_MAP[r.target]||[]):[];
+  var ik=r.ikind||'',bsel=!isA?(ik==='基準不適合を把握した'?'std':ik==='職業生活上の問題を把握した'?'work':ik==='日常生活上の問題を把握した'?'daily':ik==='社会生活上の問題を把握した'?'social':'other'):'';
+  var bOther=!isA&&bsel==='other'?(t==='job_change'?'非自発的離職時の転職支援':t==='consult'?'行政機関への相談・通報':ik):'';
+  var cut=function(s){s=String(s||'');return s.length>20?s.slice(0,20):s;};
+  var date=jd(isA&&r.req_date?r.req_date:it.d);
+  var mA=r.measure||'',mB=r.measure||'';
+  var p1='<div class="fno">参考様式第４－３号　　　　　　　　　　　　　　　　　　　登録支援機関用</div><div class="ft" style="font-size:15px;letter-spacing:.1em">１号特定技能外国人支援計画の実施における特異事案報告書</div>'+
+   '<div>出入国在留管理庁長官　殿</div><div style="margin:6px 0">出入国管理及び難民認定法施行規則第19条の24の2の規定により、次のとおり報告します。</div>'+
+   '<div class="sec">① 報告の対象者</div><table class="ft2">'+trw2('氏名（ローマ字）',esc(b.en),'性　別',sexMark(b.gender))+trw2('生年月日',esc(b.birth),'国籍・地域',esc(b.nat))+trw('在留カード番号',cardBoxes(b.card))+trw2('特定産業分野',esc(w.applicant_field||''),'業務区分',esc(w.job_category||''))+'</table>'+
+   '<div class="sec">② 報告の事由（該当するものを選んでください。）</div><div style="margin-left:2em">'+chk(isA)+' 支援の実施困難　　　　　'+chk(!isA)+' その他の特異事案</div>'+
+   '<div class="sec">Ａ 支援の実施困難</div><table class="ft2"><tr><th style="width:18%">ａ　対象の支援項目</th><td>'+R43_ITEMS.map(function(x){return '<div style="display:flex"><div style="width:52%">'+chk(on.indexOf(x[0])>=0)+' '+esc(x[0])+'</div><div>'+(x[1]?chk(on.indexOf(x[1])>=0)+' '+esc(x[1]):'')+'</div></div>';}).join('')+'</td></tr>'+
+   trw('ｂ　事由発生日',isA?esc(date):'　　　　年　　月　　日',18)+trw('ｃ　実施困難の理由<br>（全角、20文字以内）',esc(isA?cut(r.req_content||r.reason||''):''),18)+
+   trw('ｄ　措置内容',chk(isA&&/実施再開（/.test(mA))+' 実施再開（再開見込み含む）<br>'+chk(isA&&mA==='実施再開困難')+' 実施再開困難（'+esc(isA&&mA==='実施再開困難'?(r.measure_note||''):'　　　　　　')+'）<br>'+chk(isA&&mA==='実施再開不可能')+' 実施再開不可能（'+esc(isA&&mA==='実施再開不可能'?(r.measure_note||''):'　　　　　　')+'）',18)+'</table><div style="text-align:right;font-size:10.5px">次葉に続く</div>';
+  var p2='<div class="sec">Ｂ その他の特異事案</div><table class="ft2"><tr><th style="width:18%">ａ　事　　　由</th><td>'+
+    chk(!isA&&bsel==='work')+' 特定技能外国人本人の職業生活上の問題を把握<br>'+chk(!isA&&bsel==='daily')+' 特定技能外国人本人の日常生活上の問題を把握<br>'+chk(!isA&&bsel==='social')+' 特定技能外国人本人の社会生活上の問題を把握<br>'+chk(!isA&&bsel==='std')+' 特定技能所属機関における基準不適合等の問題を把握<br>'+chk(!isA&&bsel==='other')+' その他（'+esc(bOther||'　　　　　　　　')+'）</td></tr>'+
+    trw('ｂ　事由発生日',isA?'　　　　年　　月　　日':esc(date),18)+trw('ｃ　事案の概要<br>（全角、20文字以内）',esc(isA?'':cut(r.detail||r.ctopic||r.reason||'')),18)+
+    trw('ｄ　措置内容',chk(!isA&&/問題解決（/.test(mB))+' 問題解決（解決見込み含む）<br>'+chk(!isA&&mB==='問題解決困難')+' 問題解決困難（'+esc(!isA&&mB==='問題解決困難'?(r.measure_note||''):'　　　　　　')+'）<br>'+chk(!isA&&mB==='問題解決不可能')+' 問題解決不可能（'+esc(!isA&&mB==='問題解決不可能'?(r.measure_note||''):'　　　　　　')+'）',18)+'</table>'+
+    '<div class="sec">③ 報告機関</div><table class="ft2">'+trw('法人番号（13桁）',esc(o.pf.corp_no||''))+trw('機関の氏名又は名称',esc(o.name))+trw('機関の住所<br>（本店又は主たる事務所）',zipAddr('',o.addr,''))+trw2('担当者',esc(who.name),'電話番号 ※',esc(who.tel))+'</table>'+
+    '<div style="margin-top:14px">以上の記載内容は事実と相違ありません。</div><table class="ft2" style="margin-top:6px"><tr><th style="width:30%">本報告書作成者の署名／作成年月日</th><td style="height:44px;text-align:right">　　　　　年　　月　　日</td></tr></table>'+
+    '<div style="font-size:10.5px;margin-top:8px">注意　報告書作成後報告までに記載内容に変更が生じた場合、登録支援機関職員（又は委任を受けた作成者）が変更箇所を訂正し署名すること。<br>本書中、※のついた連絡先については、報告内容の確認のため、連絡させていただく場合があります。</div>';
+  return [p1,p2];
+}
 function incDocPages(it,which){
-  var o=orgPf(),w=it.w,c=coOf(it.s.company_id||w.company_id)||{},staff=(it.s.staff_names||[]).join('、');
-  var note='<div style="border:1px solid #c53030;padding:6px 8px;margin:0 0 10px;font-size:11px">RSOが作る<b>下書き</b>です。出入国在留管理庁の参考様式の書式そのものではありません。内容を公式の様式に転記して提出してください。</div>';
-  if(which==='43'){
-    return [note+'<div class="ft" style="font-size:15px">支援計画の実施における特異事案の報告（参考様式第４－３号 転記用の下書き）</div>'+
-      kv2([['登録支援機関',o.name+(o.pf.reg_no?'（登録番号 '+o.pf.reg_no+'）':'')],['所在地',o.addr],['代表者',o.rep],
-        ['外国人の氏名',w.name],['国籍・地域',w.nationality],['生年月日',jd(w.birthdate)],['在留カード番号',w.residence_card],['所属機関',c.name],
-        ['事案の種類',incKind(it)],['発生日（把握した日）',jd(it.d)],['報告の期限（14日以内）',jd(it.due)]].concat(incPairs(it)).concat([['添付する書類',incAttach(it).join('\n')||'（なし）'],['作成者（支援担当者）',staff],['作成日',jd(today())]]))];}
   var t=it.s.event_type,k=rec(it.s).ikind;
-  if(t==='not_done')return [note+'<div class="ft" style="font-size:15px">支援実施困難に係る理由書（参考様式第５－１３号 転記用の下書き）</div>'+kv2([['登録支援機関',o.name],['外国人の氏名',w.name],['所属機関',c.name]].concat(incPairs(it)).concat([['作成日',jd(today())]]))];
-  if(t==='job_change')return [note+'<div class="ft" style="font-size:15px">転職支援実施報告書（参考様式第５－１２号 転記用の下書き）</div>'+kv2([['登録支援機関',o.name],['外国人の氏名',w.name],['所属機関',c.name],['実施日',jd(it.d)]].concat(incPairs(it)).concat([['担当者',staff],['作成日',jd(today())]]))];
-  if(t==='incident'&&k==='基準不適合を把握した')return [note+'<div class="ft" style="font-size:15px">基準不適合等に係る説明書・登録支援機関作成用（参考様式第５－１９号 転記用の下書き）</div>'+kv2([['登録支援機関',o.name],['外国人の氏名',w.name],['所属機関',c.name],['把握した日',jd(it.d)]].concat(incPairs(it).slice(1)).concat([['担当者',staff],['作成日',jd(today())]]))];
+  if(which==='43')return pages43(it);
+  if(t==='not_done')return [page513(it)];
+  if(t==='job_change')return [page512(it)];
+  if(t==='incident'&&k==='基準不適合を把握した')return [page519(it)];
   return null;}
+var L44=['アラビア語','イタリア語','インドネシア語','インド語','ウクライナ語','ウズベク語','ウルドゥー語','カンボジア語','キルギス語','クメール語','シンハラ語','スペイン語','スリランカ語','スロバキア語','セブアノ語','ソンカ語','タイ語','タガログ語','タミル語','トルコ語','ドイツ語','ネパール語','バングラデシュ語','パキスタン語','パンパンガ語','ヒンディー語','ビサヤ語','ビルマ語','フィリピン語','フランス語','ブータン語','ベトナム語','ベンガル語','ペルシャ語','ペルー語','ポルトガル語','マラティ語','マラヤラム語','マレー語','ミャンマー語','モンゴル語','ラオス語','ロシア語','上海語','中国語','北京語','台湾語','広東語','英語','韓国語'];
+function pages44(lg){
+  var o=orgPf(),items=lg.items||[],g=function(l){return items.filter(function(x){return x.l===l;})[0];};
+  var s2=function(l,title,note){var x=g(l);return '<div class="sec">'+title+'</div><div style="font-size:10px">'+note+'</div><table class="ft2"><tr><th class="c" style="width:16%"></th><th class="c">変更前</th><th class="c">変更後</th></tr>'+
+    '<tr><th>（ふりがな）<br>'+esc(title.replace(/^[０-９0-9]+　/,''))+'</th><td style="height:46px">'+esc(x?x.old:'')+'</td><td>'+esc(x?x.nw:'')+'</td></tr><tr><th>（英語表記）</th><td style="height:28px"></td><td></td></tr></table>';};
+  var offs=g('支援業務を行う事務所'),oldO=(offs&&offs.oldRaw)||[],newO=(offs&&offs.nwRaw)||[],nm=function(r){return r.name||'';};
+  var addO=newO.filter(function(r){return !oldO.some(function(q){return nm(q)===nm(r);});}),delO=oldO.filter(function(r){return !newO.some(function(q){return nm(q)===nm(r);});});
+  var chgO=newO.filter(function(r){return oldO.some(function(q){return nm(q)===nm(r)&&(q.addr!==r.addr||q.tel!==r.tel);});});
+  var oBox=function(list,title){return list.map(function(r){return '<table class="ft2" style="margin:3px 0"><tr><th style="width:22%">支援を行う事務所の名称</th><td>'+esc(r.name||'')+'</td></tr><tr><th>支援を行う事務所の所在地</th><td>'+zipAddr('',r.addr,r.tel)+'</td></tr></table>';}).join('')||'<table class="ft2"><tr><td style="height:40px"></td></tr></table>';};
+  var lg0=g('対応可能言語・通訳者'),oldL=((lg0&&lg0.oldRaw)||[]).map(function(r){return r.lang;}).filter(Boolean),newLr=((lg0&&lg0.nwRaw)||[]),newL=newLr.map(function(r){return r.lang;}).filter(Boolean);
+  var delL=oldL.filter(function(l){return newL.indexOf(l)<0;}),addL=newL.filter(function(l){return oldL.indexOf(l)<0;});
+  var langBox=function(sel,hasOther){var other=sel.filter(function(l){return L44.indexOf(l)<0;});return '<div style="font-size:10.5px;line-height:1.9">'+L44.map(function(l){return chk(sel.indexOf(l)>=0)+l;}).join('　')+'　'+chk(other.length>0)+'その他（'+esc(other.join('、'))+'）</div>';};
+  var p1='<div class="fno">参考様式第４－４号</div><div class="ft" style="font-size:15px;letter-spacing:.1em">登録事項変更に関する届出書別紙</div><div style="font-size:11px">登録支援機関　'+esc(o.name)+(o.pf.reg_no?'（登録番号 '+esc(o.pf.reg_no)+'）':'')+'　　変更した日　'+esc(jd(lg.at))+'</div>'+
+    s2('名称','１　氏名又は名称','（注意）英語表記も必ず記載すること。支援を行う事務所の名称についても同時に変更となる場合は、「４　支援を行う事務所」欄も記載すること。')+
+    s2('住所（本店所在地）','２　住所','（注意）英語表記も必ず記載すること。郵便番号又は電話番号のみを変更する場合は、この欄に記載すること。支援を行う事務所の所在地についても同時に変更となる場合は、「４　支援を行う事務所」欄も記載すること。')+
+    s2('代表者の氏名','３　代表者氏名','（注意）英語表記も必ず記載すること。役職名等は記載せず、氏名のみを記載すること。');
+  var p2='<div class="sec">４　支援を行う事務所</div><div style="font-size:10px">（注意）以下のいずれかにチェックマークを付すこと。英語表記も必ず記載すること。</div>'+
+    '<div>'+chk(chgO.length>0)+'　支援を行う事務所を変更する。</div>'+oBox(chgO)+'<div>'+chk(delO.length>0)+'　支援を行う事務所を削除する。（太枠内に削除する事務所を記載すること。）</div>'+oBox(delO)+'<div>'+chk(addO.length>0)+'　支援を行う事務所を追加する。（太枠内に追加する事務所を記載すること。）</div>'+oBox(addO)+
+    '<div class="sec">５　支援業務の内容及び実施方法</div><div style="font-size:10px">（注意）以下のいずれかにチェックマークを付すこと。</div><div>'+chk(false)+'　任意的支援を「有」から「無」に変更する。</div><div>'+chk(false)+'　任意的支援を「無」から「有」に変更する。（太枠内に任意的支援の内容を記載すること。）</div><table class="ft2"><tr><th style="width:22%">任意的支援の内容</th><td style="height:46px"></td></tr></table>'+
+    '<div class="sec">６　支援業務を開始する予定年月日</div><table class="ft2"><tr><th></th><th class="c">変更前</th><th class="c">変更後</th></tr><tr><th>予定年月日</th><td class="c">　　　年　　月　　日</td><td class="c">　　　年　　月　　日</td></tr></table>';
+  var p3='<div class="sec">７　特定技能外国人からの相談に応じる体制の概要</div><div style="font-size:10px">（注意）以下のいずれかにチェックマークを付すこと。</div>'+
+    '<div>'+chk(delL.length>0)+'　対応可能言語を削除する。（太枠内で削除する言語を選択すること。）</div><table class="ft2"><tr><th class="c">削除する対応可能言語</th></tr><tr><td>'+langBox(delL)+'</td></tr></table>'+
+    '<div style="margin-top:8px">'+chk(addL.length>0)+'　対応可能言語を追加する。（太枠内で追加する言語を選択し、次ページの「相談対応に係る措置状況」欄に詳細を記載すること。）</div><table class="ft2"><tr><th class="c">追加する対応可能言語</th></tr><tr><td>'+langBox(addL)+'</td></tr></table>'+
+    (g('相談に応じる曜日・時間帯')||g('相談の方法（面談・電話・メール・SNSなど）')?'<div class="sec">（参考）相談の体制で変更した項目</div><table class="ft2">'+['相談に応じる曜日・時間帯','相談の方法（面談・電話・メール・SNSなど）'].filter(g).map(function(l){var x=g(l);return '<tr><th style="width:26%">'+esc(l)+'</th><td>変更前：'+esc(x.old)+'<br>変更後：'+esc(x.nw)+'</td></tr>';}).join('')+'</table>':'');
+  var pages=[p1,p2,p3];
+  if(addL.length){
+    var cols=addL.slice(0,3);while(cols.length<3)cols.push('');
+    var info=function(l){return newLr.filter(function(r){return r.lang===l;})[0]||{};};
+    var cell=function(f){return '<tr>'+cols.map(function(l){return f(l,info(l));}).join('')+'</tr>';};
+    pages.push('<div class="sec">相談対応に係る措置状況（追加する対応可能言語の全てについて記載すること。）</div><div style="font-size:10px">（１）欄は、日本語を除く、対応可能な外国語について記載すること。（２）欄は、（１）欄の言語での対応が可能な者について、該当するものにチェックマークを付し、括弧内に氏名を記載すること。（３）欄は、対応時間について確認の上、「以下のいずれにも対応」にチェックマークを付すこと。（４）欄は、（３）欄の対応時間以外で緊急な対応が必要となった場合の対応方法について記載すること。</div>'+
+      '<table class="ft2" style="margin-top:6px"><tr><th style="width:14%">（１）対応可能言語</th>'+cols.map(function(l){return '<td class="c">'+(l?esc(l):'　　　　　　　　')+'</td>';}).join('')+'</tr>'+
+      '<tr><th>（２）対応方法</th>'+cols.map(function(l){var i=info(l),staff=l&&i.name&&/職員|常勤/.test(String(i.emp||''))||(l&&i.name&&!/委託|通訳/.test(String(i.emp||''))&&!!String(i.emp||''));var tr=l&&/委託|通訳/.test(String(i.emp||''));return '<td>'+chk(!!staff)+' 登録支援機関職員<br>（'+esc(staff?i.name:'　　　')+'）<br>'+chk(!!tr)+' 通訳人委託<br>（'+esc(tr?i.name:'　　　')+'）<br>'+chk(false)+' その他<br>（　　　）</td>';}).join('')+'</tr>'+
+      '<tr><th>（３）対応時間</th>'+cols.map(function(){return '<td style="font-size:10px">'+chk(false)+' 以下のいずれにも対応<br>・特定技能所属機関との支援委託契約に基づき、特定技能外国人の勤務形態に合わせて適切（１週間当たり勤務日に３日以上、休日に１日以上）に対応<br>・特定技能外国人の勤務時間に合わせて相談しやすい時間帯に対応</td>';}).join('')+'</tr></table>'+
+      '<table class="ft2" style="margin-top:6px"><tr><th style="width:14%">（４）緊急時の対応</th><td style="height:60px"></td></tr></table>');
+  }
+  return pages;
+}
 function todokeClick(e){var b=e.target.closest('button');if(!b)return;
   if(b.dataset.osched){openSched(b.dataset.osched);return;}
   if(b.dataset.nsched){var nw=byId(D.wk,b.dataset.pw)||{};openSched(null,{worker_id:nw.id,company_id:nw.company_id,event_type:b.dataset.nsched});return;}
   if(b.dataset.newinc){openSched(null,{event_type:'incident'});return;}
   if(b.dataset.pdoc){var p=b.dataset.pdoc.split('|'),s=byId(D.sc,p[1]);if(!s)return;var it=incItems().filter(function(x){return x.s.id===s.id;})[0];if(!it)return;
     var pg=incDocPages(it,p[0]);if(!pg){toast('この事案の添付は、'+(incAttach(it)[0]||'ありません')+'です（帳簿・面談の画面から印刷します）');return;}
-    openForm((p[0]==='43'?'特異事案報告書（4-3）下書き_':'添付様式の下書き_')+(it.w.name||''),pg);return;}
+    openForm((p[0]==='43'?'特異事案報告書（4-3）_':'添付様式_')+(it.w.name||''),pg);return;}
   if(b.dataset.inc43){var s2=byId(D.sc,b.dataset.inc43);if(!s2)return;var dt=prompt('4-3を出入国在留管理局に提出した日（例 '+today()+'）',today());if(dt==null)return;dt=dt.trim();
     if(!/^\d{4}-\d{2}-\d{2}$/.test(dt)){toast('日付は 2026-11-05 の形で入れてください');return;}
     var nr=Object.assign({},s2.record||{},{r43_date:dt,r43_by:(s2.record||{}).r43_by||'登録支援機関が提出する（4-3）'});
@@ -3439,9 +3546,7 @@ function todokeClick(e){var b=e.target.closest('button');if(!b)return;
     if(!/^\d{4}-\d{2}-\d{2}$/.test(d2)){toast('日付は 2026-11-05 の形で入れてください');return;}
     tlSave(function(a){a.forEach(function(l){if(l.id===id){if(isF)l.filed=d2;else l.notified=d2;}});}).then(function(ok){if(ok){toast('記録しました');renderTodoke();updBadges();}});return;}
   if(b.dataset.tlprint){var lg=tlog().filter(function(l){return l.id===b.dataset.tlprint;})[0];if(!lg)return;var o=orgPf();
-    openForm('登録事項の変更届出_控え',['<div style="border:1px solid #c53030;padding:6px 8px;margin:0 0 10px;font-size:11px">RSOが作る<b>下書き</b>です。出入国在留管理庁の参考様式第４－４号の書式そのものではありません。内容を公式の様式に転記して提出してください。</div><div class="ft" style="font-size:15px">登録事項の変更届出（参考様式第４－４号 転記用の下書き）</div>'+
-      kv2([['登録支援機関',o.name+(o.pf.reg_no?'（登録番号 '+o.pf.reg_no+'）':'')],['変更した日',jd(lg.at)],['届出の期限（14日以内）',jd(addDays(lg.at,14))]])+
-      (lg.items||[]).map(function(x){return '<div class="sec">'+esc(x.l)+'</div>'+kv2([['変更前',x.old],['変更後',x.nw]]);}).join('')]);return;}
+    openForm('登録事項の変更に関する届出書別紙（4-4）',pages44(lg));return;}
 }
 function renderTodoke(){
   var el=$('v-todoke');if(!el.dataset.bound){el.dataset.bound='1';el.addEventListener('click',todokeClick);}
@@ -3453,7 +3558,7 @@ function renderTodoke(){
     '<div class="hint">次のどれかを記録すると、ここに並びます。支援を実施しなかった記録／転職支援の記録／相談から労基署・ハローワーク等へ相談・通報した記録（「通報・相談した行政機関」に入力）／行方不明・死亡・基準不適合などの特異事案。支援の全部を委託されているときは、登録支援機関が4-3を出します（一部だけの委託なら所属機関が3-7を出します）。</div>'+
     (inc.length?'<table class="tbl"><thead>'+th(['発生日','人材（所属機関）','種類','報告の期限','状態','添付する書類','操作'])+'</thead><tbody>'+inc.map(function(it){var st=incState(it),at=incAttach(it);
       return '<tr><td class="num">'+esc(ymdj(it.d))+'</td><td>'+esc(it.w.name||'')+'<div class="sub">'+esc(coName(it.s.company_id||it.w.company_id))+'</div></td><td>'+esc(incKind(it))+'</td><td class="num">'+esc(ymdj(it.due))+'</td><td>'+pill(st[1],st[0])+(it.filed?'<div class="sub">'+esc(ymdj(it.filed))+'</div>':'')+'</td><td style="font-size:12px">'+at.map(esc).join('<br>')+'</td>'+
-        '<td style="white-space:nowrap"><button class="btn btn-sm" data-osched="'+esc(it.s.id)+'">記録を開く</button> <button class="btn btn-sm" data-pdoc="43|'+esc(it.s.id)+'">4-3の下書き</button>'+(incDocPages(it,'att')?' <button class="btn btn-sm" data-pdoc="att|'+esc(it.s.id)+'">添付の下書き</button>':'')+(it.filed?'':' <button class="btn btn-sm btn-primary" data-inc43="'+esc(it.s.id)+'">提出済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">該当する記録はありません</div>')+'</div>';
+        '<td style="white-space:nowrap"><button class="btn btn-sm" data-osched="'+esc(it.s.id)+'">記録を開く</button> <button class="btn btn-sm" data-pdoc="43|'+esc(it.s.id)+'">4-3を出力</button>'+(incDocPages(it,'att')?' <button class="btn btn-sm" data-pdoc="att|'+esc(it.s.id)+'">添付書類を出力</button>':'')+(it.filed?'':' <button class="btn btn-sm btn-primary" data-inc43="'+esc(it.s.id)+'">提出済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">該当する記録はありません</div>')+'</div>';
   /* ② 定期面談 */
   var mr=meetRows();
   h+='<div class="xsec"><div class="xsec-t">② 定期面談の間隔　<span class="sub">外国人本人・監督者の両方と、3か月に1回以上（対面またはオンライン）</span></div>'+
@@ -3464,7 +3569,7 @@ function renderTodoke(){
   h+='<div class="xsec"><div class="xsec-t">③ 登録事項の変更届出（参考様式第4-4号）　<span class="sub">変更した日から14日以内</span></div>'+
     '<div class="hint">マイページで、名称・住所・代表者・事務所・支援業務の内容・相談の体制や対応言語などを変えて保存すると、自動でここに記録されます。</div>'+
     (chg.length?'<table class="tbl"><thead>'+th(['変更した日','変更した項目','届出の期限','状態','操作'])+'</thead><tbody>'+chg.map(function(l){var due=addDays(l.at,14),left=daysTo(due),st=l.filed?['提出済み','ok']:left<0?['期限切れ（'+(-left)+'日）','bad']:left<=5?['あと'+left+'日','warn']:['あと'+left+'日','info'];
-      return '<tr><td class="num">'+esc(ymdj(l.at))+'<div class="sub">'+esc(l.by||'')+'</div></td><td style="font-size:12px">'+(l.items||[]).map(function(x){return '<b>'+esc(x.l)+'</b>';}).join('、')+'</td><td class="num">'+esc(ymdj(due))+'</td><td>'+pill(st[1],st[0])+(l.filed?'<div class="sub">'+esc(ymdj(l.filed))+'</div>':'')+'</td><td style="white-space:nowrap"><button class="btn btn-sm" data-tlprint="'+esc(l.id)+'">届出の下書き</button>'+(l.filed||!adm?'':' <button class="btn btn-sm btn-primary" data-tlfile="'+esc(l.id)+'">提出済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">記録された変更はありません</div>')+'</div>';
+      return '<tr><td class="num">'+esc(ymdj(l.at))+'<div class="sub">'+esc(l.by||'')+'</div></td><td style="font-size:12px">'+(l.items||[]).map(function(x){return '<b>'+esc(x.l)+'</b>';}).join('、')+'</td><td class="num">'+esc(ymdj(due))+'</td><td>'+pill(st[1],st[0])+(l.filed?'<div class="sub">'+esc(ymdj(l.filed))+'</div>':'')+'</td><td style="white-space:nowrap"><button class="btn btn-sm" data-tlprint="'+esc(l.id)+'">届出書を出力</button>'+(l.filed||!adm?'':' <button class="btn btn-sm btn-primary" data-tlfile="'+esc(l.id)+'">提出済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">記録された変更はありません</div>')+'</div>';
   /* ④ 支援担当者の変更 */
   var stf=tlog().filter(function(l){return l.kind==='staff';}).slice().reverse();
   h+='<div class="xsec"><div class="xsec-t">④ 支援責任者・支援担当者の変更　<span class="sub">登録支援機関からの届出は不要。ただし所属機関が「支援計画の変更届出」を出します</span></div>'+

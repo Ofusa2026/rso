@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.14 -->
+<!-- RSO_VERSION ver.20261105.15 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -401,7 +401,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.14</div>
+      <div class="ver">ver.20261105.15</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -1182,7 +1182,7 @@ async function saveMypage(){
   if(before0.hearing_def)p.hearing_def=before0.hearing_def;else delete p.hearing_def;
   p.todoke_log=Array.isArray(before0.todoke_log)?JSON.parse(JSON.stringify(before0.todoke_log)):[];
   /* 変更の記録（届出・期限の画面に出る）。初めて保存するときは記録しない */
-  var sb0=staffNameList(before0),sa0=staffNameList(p),add=sa0.filter(function(n){return sb0.indexOf(n)<0;}),del=sb0.filter(function(n){return sa0.indexOf(n)<0;});
+  var sb0=staffNameList(before0),sa0=staffNameList(p),add=[],del=[];   /* 担当者を増やしただけでは届出は要らない。所属機関ごとの担当が変わったときに、所属機関の画面から記録する */
   if(Object.keys(before0).length&&before0.corp_name){
     var logBy=(me&&((me.staff_name||'').trim()||(me.display_name||'').trim()))||'ユーザー';
     mergeTodokeLog(p.todoke_log,todokeDiff(before0,p),add,del,logBy);
@@ -1904,6 +1904,20 @@ async function quickSaveNotes(){
 }
 function replaceIn(list,row){for(var i=0;i<list.length;i++)if(list[i].id===row.id){list[i]=row;return;}list.push(row);}
 function same(a,b){var n=function(v){if(v==null||v===''||v===false||(Array.isArray(v)&&!v.length))return '';return typeof v==='object'?JSON.stringify(v):String(v);};return n(a)===n(b);}
+/* 所属機関のメイン担当・サブ担当（支援責任者・支援担当者）が変わったら、「届出・期限」に記録する（所属機関が支援計画の変更届出を出すため） */
+function staffChangeLog(old,row){
+  var nm=function(c){return splitNames(c&&c.main_staff).concat(splitNames(c&&c.sub_staff)).filter(function(n,i,a){return a.indexOf(n)===i;});};
+  var b=nm(old),a=nm(row),add=a.filter(function(n){return b.indexOf(n)<0;}),del=b.filter(function(n){return a.indexOf(n)<0;});
+  if(!add.length&&!del.length)return;
+  var t0=today();
+  tlSave(function(log){
+    var ex=log.filter(function(l){return l.kind==='staff'&&l.company_id===row.id&&!l.notified&&l.at===t0;})[0];
+    if(!ex){log.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),kind:'staff',at:t0,company_id:row.id,co:row.name||'',add:add,del:del,notified:'',by:myName()});return;}
+    var A=(ex.add||[]).concat(add),D2=(ex.del||[]).concat(del);
+    ex.add=A.filter(function(n,i,x){return x.indexOf(n)===i&&D2.indexOf(n)<0;});ex.del=D2.filter(function(n,i,x){return x.indexOf(n)===i&&A.indexOf(n)<0;});ex.co=row.name||ex.co;
+    if(!ex.add.length&&!ex.del.length)log.splice(log.indexOf(ex),1);
+  }).then(function(ok){if(ok){setTimeout(function(){toast('「'+(row.name||'')+'」の担当者が変わりました。「届出・期限」に記録しました（所属機関が支援計画の変更届出を出します）');},1500);if(window.RSO.view()==='todoke')renderTodoke();updBadges();}});
+}
 async function saveCompany(){
   var dr=M.dr;if(!String(dr.name||'').trim()){toast('機関名は必須です');return;}
   var p=payloadOf('companies',dr),old=M.orig||{};
@@ -1918,6 +1932,7 @@ async function saveCompany(){
     if(!M.isNew){var labels={},logs=[];KF.companies.forEach(function(f){labels[f[0]]=f[1];});
       Object.keys(labels).forEach(function(k){if(k==='company_notes')return;if(!same(old[k],row[k]))logs.push({company_id:row.id,changed_by:myName(),field_name:k,field_label:labels[k],old_value:old[k]==null?'':(typeof old[k]==='object'?JSON.stringify(old[k]):String(old[k])),new_value:row[k]==null?'':(typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k]))});});
       if(logs.length)db().from('company_change_log').insert(logs).then(function(){});}
+    if(!M.isNew)staffChangeLog(old,row);
     replaceIn(D.co,row);M.isNew=false;M.orig=JSON.parse(JSON.stringify(row));if(window.__AUTO){autoMerge('companies',row);M.dirty=JSON.stringify(M.dr)!==M._snap;toast('保存しました');rerender();return;}M.dr=draftFrom('companies',row);M.dirty=false;toast('保存しました');drawModal(true);rerender();
   }catch(e){toast('保存できませんでした：'+(e.message||''));}
 }
@@ -3667,10 +3682,10 @@ function renderTodoke(){
       return '<tr><td class="num">'+esc(ymdj(l.at))+'<div class="sub">'+esc(l.by||'')+'</div></td><td style="font-size:12px">'+(l.items||[]).map(function(x){return '<b>'+esc(x.l)+'</b>';}).join('、')+'</td><td class="num">'+esc(ymdj(due))+'</td><td>'+pill(st[1],st[0])+(l.filed?'<div class="sub">'+esc(ymdj(l.filed))+'</div>':'')+'</td><td style="white-space:nowrap"><button class="btn btn-sm" data-tlprint="'+esc(l.id)+'">届出書を出力</button>'+(l.filed||!adm?'':' <button class="btn btn-sm btn-primary" data-tlfile="'+esc(l.id)+'">提出済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">記録された変更はありません</div>')+'</div>';
   /* ④ 支援担当者の変更 */
   var stf=tlog().filter(function(l){return l.kind==='staff';}).slice().reverse();
-  h+='<div class="xsec"><div class="xsec-t">③ 支援責任者・支援担当者の変更　<span class="sub">登録支援機関からの届出は不要。ただし所属機関が「支援計画の変更届出」を出します</span></div>'+
-    (stf.length?'<table class="tbl"><thead>'+th(['変更した日','内容','所属機関への連絡','操作'])+'</thead><tbody>'+stf.map(function(l){
-      return '<tr><td class="num">'+esc(ymdj(l.at))+'<div class="sub">'+esc(l.by||'')+'</div></td><td>'+(l.add&&l.add.length?'追加：'+esc(l.add.join('、')):'')+(l.add&&l.add.length&&l.del&&l.del.length?'<br>':'')+(l.del&&l.del.length?'外れた人：'+esc(l.del.join('、')):'')+'</td><td>'+(l.notified?pill('ok','連絡済み '+ymdj(l.notified)):pill('warn','未連絡'))+'</td><td>'+(l.notified||!adm?'':'<button class="btn btn-sm btn-primary" data-tlstaff="'+esc(l.id)+'">連絡済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>'+
-      '<div class="hint">支援を委託している所属機関すべてに、支援責任者・支援担当者が変わったことを伝え、支援計画の変更届出を出してもらってください。</div>':'<div class="empty">記録された変更はありません</div>')+'</div>';
+  h+='<div class="xsec"><div class="xsec-t">③ 支援責任者・支援担当者の変更　<span class="sub">所属機関ごとのメイン担当・サブ担当が変わったときに記録されます。登録支援機関からの届出は不要。ただし所属機関が「支援計画の変更届出」を出します</span></div>'+
+    (stf.length?'<table class="tbl"><thead>'+th(['変更した日','所属機関','内容','所属機関への連絡','操作'])+'</thead><tbody>'+stf.map(function(l){
+      return '<tr><td class="num">'+esc(ymdj(l.at))+'<div class="sub">'+esc(l.by||'')+'</div></td><td>'+esc(l.co||(coOf(l.company_id)||{}).name||'（所属機関の指定なし）')+'</td><td>'+(l.add&&l.add.length?'追加：'+esc(l.add.join('、')):'')+(l.add&&l.add.length&&l.del&&l.del.length?'<br>':'')+(l.del&&l.del.length?'外れた人：'+esc(l.del.join('、')):'')+'</td><td>'+(l.notified?pill('ok','連絡済み '+ymdj(l.notified)):pill('warn','未連絡'))+'</td><td>'+(l.notified||!adm?'':'<button class="btn btn-sm btn-primary" data-tlstaff="'+esc(l.id)+'">連絡済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>'+
+      '<div class="hint">該当の所属機関に、支援責任者・支援担当者が変わったことを伝え、支援計画の変更届出を出してもらってください。</div>':'<div class="empty">記録された変更はありません</div>')+'</div>';
   el.innerHTML=h;el.dataset.built='1';
 }
 

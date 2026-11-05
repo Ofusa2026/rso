@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.18 -->
+<!-- RSO_VERSION ver.20261105.19 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -409,7 +409,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.18</div>
+      <div class="ver">ver.20261105.19</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -2369,10 +2369,10 @@ function openSched(id,preset){
        '<div class="xf"><label class="chk"><input type="checkbox" data-s="all_day"'+(d.all_day?' checked':'')+'> 一日中</label>'+(d.all_day?'':'<div class="toolbar"><input type="time" data-s="start_time" value="'+esc((d.start_time||'').slice(0,5))+'">〜<input type="time" data-s="end_time" value="'+esc((d.end_time||'').slice(0,5))+'"></div>')+'</div>'+
        '<div class="xf"><label>状態</label><select data-s="status">'+optHtml([['planned','予定'],['done','実施済']],d.status)+'</select></div>'+
        (isNew&&d.event_type==='placement'?'<div class="xf"><label class="chk"><input type="checkbox" data-s="withOri"'+(d.withOri?' checked':'')+'> 生活オリエンテーションも同じ日に実施</label></div>':'')+
-       recFields(d)+reportFields(d)+
+       (d.status==='done'?recFields(d)+reportFields(d):recGuide(d))+
        (d.event_type==='other_support'?'<div class="xf wide"><label>対応内容</label><input type="text" data-s="other_label" value="'+esc(d.other_label||'')+'"></div>':'')+
        '<div class="xf wide"><label>対応担当者名</label><div class="ms">'+sn.map(function(n){return '<label class="chk"><input type="checkbox" data-staff="'+esc(n)+'"'+((d.staff_names||[]).indexOf(n)>=0?' checked':'')+'> '+esc(n)+'</label>';}).join('')+'</div>'+(staffNames().length?'':NO_STAFF_HINT)+'</div>'+
-       (per?'<div class="xf wide"><label>面談記録の相談内容</label><textarea data-s="memo" rows="5">'+esc(d.memo||MEMO_TPL)+'</textarea></div><div class="xf wide"><label>面談記録の対応結果</label><textarea data-s="result" rows="3">'+esc(d.result||'')+'</textarea><div class="hint">対応結果は面談日から14日以内に記入してください。3営業日を過ぎて未記入だと「記入待ち」になります。</div></div>'
+       (per&&d.status!=='done'?'':per?'<div class="xf wide"><label>面談記録の相談内容</label><textarea data-s="memo" rows="5">'+esc(d.memo||MEMO_TPL)+'</textarea></div><div class="xf wide"><label>面談記録の対応結果</label><textarea data-s="result" rows="3">'+esc(d.result||'')+'</textarea><div class="hint">対応結果は面談日から14日以内に記入してください。3営業日を過ぎて未記入だと「記入待ち」になります。</div></div>'
            :'<div class="xf wide"><label>メモ</label><textarea data-s="notes" rows="3">'+esc(d.notes||'')+'</textarea></div>')+
        '</div>';},
     after:function(el){
@@ -2384,7 +2384,7 @@ function openSched(id,preset){
         if(k==='_cq'){var cs=D.co.filter(function(c){return norm(c.name).indexOf(norm(v))>=0;});if(v&&cs.length===1)d.company_id=cs[0].id;else if(v&&d.company_id&&!cs.some(function(c){return c.id===d.company_id;}))d.company_id=cs.length===1?cs[0].id:null;}
         if(k==='company_id'){d.wids=d.wids.filter(function(x){var w=byId(D.wk,x);return w&&w.company_id===v;});}
         if(k==='worker_id'){var w=byId(D.wk,v);if(w){d.company_id=w.company_id;d._cq='';}}
-        if(['event_type','event_method','_cq','_wq','company_id','worker_id','monthOnly','all_day'].indexOf(k)>=0){var f=document.activeElement&&document.activeElement.dataset.s;drawSmall();if(f==='_cq'||f==='_wq'){var x=el.querySelector('[data-s="'+f+'"]');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}}}
+        if(['event_type','event_method','_cq','_wq','company_id','worker_id','monthOnly','all_day','status'].indexOf(k)>=0){var f=document.activeElement&&document.activeElement.dataset.s;drawSmall();if(f==='_cq'||f==='_wq'){var x=el.querySelector('[data-s="'+f+'"]');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}}}
       });});
       el.querySelectorAll('[data-rp]').forEach(function(i){i.addEventListener(i.tagName==='SELECT'||i.type==='date'?'change':'input',function(){rpSet(d,i.dataset.rp,i.value);if(/\|(ng|chk\.)/.test(i.dataset.rp))drawSmall();});});
       el.querySelectorAll('[data-rpo]').forEach(function(x){x.addEventListener('toggle',function(){d._rpo=d._rpo||{};d._rpo[x.dataset.rpo]=x.open;});});
@@ -2403,7 +2403,7 @@ function openSched(id,preset){
         if(b.dataset.ssave)await saveSched(d,!id);
       });
     },
-    left:function(){var fm={pre_guidance:[['5-9','確認書（5-9号）を印刷']],life_orientation:[['5-8','確認書（5-8号）を印刷']],periodic_meeting:[['5-5','5-5号を印刷'],['5-6','5-6号を印刷']]}[d.event_type]||[];
+    left:function(){var fm={pre_guidance:[['5-9','確認書（5-9号）を出力']],life_orientation:[['5-8','確認書（5-8号）を出力']],periodic_meeting:[['5-5','定期面談報告書 5-5号（外国人用）を出力'],['5-6','定期面談報告書 5-6号（監督者用）を出力']]}[d.event_type]||[];
       return (id&&canDel()?'<button class="btn btn-danger" data-sdel="1">削除</button> ':'')+'<button class="btn" data-gcal="1">Googleカレンダーに追加</button>'+fm.map(function(x){return ' <button class="btn" data-pform="'+x[0]+'">'+x[1]+'</button>';}).join('');}
   });
 }
@@ -3225,6 +3225,11 @@ var REC_F={
   periodic_meeting:[['supervisor','面談した監督者の氏名']],
   not_done:[['target','実施しなかった支援','sel',['事前ガイダンス','出入国時の送迎','住居確保・生活に必要な契約','生活オリエンテーション','関係機関への同行','日本語学習の機会','相談・苦情','交流促進','転職支援','定期面談','その他']],['req_date','申出を受けた日','date'],['req_content','申出の内容（4-3は20文字以内に切り詰め）','area','例：本人から「自分で手続きできるので同行不要」との申出'],['measure','措置内容（4-3 Aのd）','sel',['実施再開（再開見込み含む）','実施再開困難','実施再開不可能']],['measure_note','困難・不可能の理由','area']]
 };
+/* 予定の段階では、帳簿に載る記録欄は出さない（実施したあとに記入する） */
+function recGuide(d){
+  var t=d.event_type;if(!t||!BOOK_BY['ev:'+t])return '';var B=BOOK_BY['ev:'+t];
+  return '<div class="xf wide" style="background:#ebf8ff;border:1px solid #bee3f8;border-radius:8px;padding:8px 10px;color:#2b6cb0;font-size:12.5px"><b>帳簿の記録は、実施したあとに記入します。</b><br>実施したら、上の「状態」を「実施済」にしてください。'+(t==='periodic_meeting'?'面談の内容・対応結果、5-5号・5-6号の記入欄、録画・同意書面のURLが出ます。':'記入欄が出て、監査帳簿（'+esc(B.no+' '+B.t)+'）に載ります。')+(t==='pre_guidance'||t==='life_orientation'||t==='periodic_meeting'?'<br>面談・実施の前に、確認書や報告書の様式を出力して使うこともできます（下のボタン）。':'')+'</div>';
+}
 function recFields(d){
   var t=d.event_type;if(!t)return '';var B=BOOK_BY['ev:'+t],per=t==='periodic_meeting';d.record=d.record||{};
   var fl=(REC_F[t]||[['content','実施内容','area']]).concat(INC_TYPES.indexOf(t)>=0?INC_COMMON:[]);
@@ -3676,6 +3681,7 @@ function pages44(lg){
   return pages;
 }
 function todokeClick(e){var b=e.target.closest('button');if(!b)return;
+  if(b.dataset.prep){var pp=b.dataset.prep.split('|'),pw=byId(D.wk,pp[1]);if(pw)printForm(pp[0],{worker:pw});return;}
   if(b.dataset.osched){openSched(b.dataset.osched);return;}
   if(b.dataset.nsched){var nw=byId(D.wk,b.dataset.pw)||{};openSched(null,{worker_id:nw.id,company_id:nw.company_id,event_type:b.dataset.nsched});return;}
   if(b.dataset.newinc){openSched(null,{event_type:'incident'});return;}
@@ -3709,7 +3715,7 @@ function renderMeeting(){
     '<button class="btn btn-sm'+(VM.all?'':' btn-primary')+'" id="mAll">'+(VM.all?'要対応だけに絞る':'すべての人を表示（'+all.length+'名）')+'</button>'+
     '<span class="sub">要対応 <b>'+need.length+'名</b>（うち期限切れ・予定なし <b style="color:#c53030">'+over+'名</b>）　全体 '+all.length+'名</span></div>'+
     (rows.length?'<table class="tbl"><thead>'+th(['人材','所属機関','最後の面談','次の期限（3か月）','予定','状態','操作'])+'</thead><tbody>'+rows.map(function(m){var st=meetState(m);
-      return '<tr><td>'+esc(m.w.name||'')+'</td><td>'+esc(coName(m.w.company_id))+'</td><td class="num">'+(m.last?esc(ymdj(m.last)):'<span class="sub">まだ（支援開始日から数えます）</span>')+'</td><td class="num">'+esc(ymdj(m.due))+'</td><td class="num">'+(m.plan?esc(ymdj(m.plan)):'')+'</td><td>'+pill(st[1],st[0])+'</td><td><button class="btn btn-sm" data-nsched="periodic_meeting" data-pw="'+esc(m.w.id)+'">面談を登録</button></td></tr>';}).join('')+'</tbody></table>':
+      return '<tr><td>'+esc(m.w.name||'')+'</td><td>'+esc(coName(m.w.company_id))+'</td><td class="num">'+(m.last?esc(ymdj(m.last)):'<span class="sub">まだ（支援開始日から数えます）</span>')+'</td><td class="num">'+esc(ymdj(m.due))+'</td><td class="num">'+(m.plan?esc(ymdj(m.plan)):'')+'</td><td>'+pill(st[1],st[0])+'</td><td style="white-space:nowrap"><button class="btn btn-sm" data-nsched="periodic_meeting" data-pw="'+esc(m.w.id)+'">面談を登録</button> <button class="btn btn-sm" data-prep="5-5|'+esc(m.w.id)+'">5-5 出力</button> <button class="btn btn-sm" data-prep="5-6|'+esc(m.w.id)+'">5-6 出力</button></td></tr>';}).join('')+'</tbody></table><div class="hint">「5-5 出力」（外国人用）「5-6 出力」（監督者用）は、いちばん新しい面談の記録で定期面談報告書を出します。面談のあと、予定の画面で「実施済」にして記入すると、内容が入ります。</div>':
       '<div class="empty">'+(all.length?(q?'該当する人材がいません':'期限切れ・期限が近い人はいません（すべての人を見るには上のボタン）'):'支援開始日が入っている人材がいません')+'</div>')+'</div>';
 }
 function renderTodoke(){

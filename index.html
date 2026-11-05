@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.13 -->
+<!-- RSO_VERSION ver.20261105.14 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -372,6 +372,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
   <button class="nav-item" id="nav-companies" data-v="companies">所属機関</button>
   <button class="nav-item" id="nav-workers" data-v="workers">外国人材</button>
   <button class="nav-item" id="nav-sched" data-v="sched">支援スケジュール</button>
+  <button class="nav-item" id="nav-meeting" data-v="meeting">定期面談</button>
   <button class="nav-item" id="nav-ledger" data-v="ledger">監査帳簿</button>
   <button class="nav-item" id="nav-todoke" data-v="todoke">届出・期限</button>
   <div class="sb-group">求人・人材紹介</div>
@@ -400,7 +401,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.13</div>
+      <div class="ver">ver.20261105.14</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -475,6 +476,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
   <section id="v-sched" hidden></section>
   <section id="v-ledger" hidden></section>
   <section id="v-todoke" hidden></section>
+  <section id="v-meeting" hidden></section>
   <section id="v-jobs" hidden></section>
   <section id="v-cands" hidden></section>
   <section id="v-tchat" hidden></section>
@@ -683,8 +685,8 @@ function nextCell(l){
 }
 
 /* ---------- 画面切替 ---------- */
-var TITLES={todoke:['届出・期限','特異事案の報告（14日以内）・定期面談の間隔（3か月）・登録事項の変更届出（14日以内）・支援担当者の変更'],olink:['O-Link','大房行政書士法人への申請依頼・進捗・不足書類・お知らせ（O-Link）'],audit:['操作の記録','だれが・いつ・何を追加／変更／削除したか（管理者だけ）'],account:['アカウント設定','自分の表示名・マイページの担当者との紐づけ・パスワード'],kpi:['KPI','所属機関への営業の行動量と成果を、月の目標と比べて見ます'],leads:['見込み客','求人・支援委託をもらう前の企業と、次の一手を管理します'],mypage:['マイページ','登録支援機関の基本情報。法定の帳簿（支援実施体制）と登録支援機関概要書の項目をまとめて管理します'],orgs:['登録支援機関の管理','運営用：配布する登録支援機関と、その最初の管理者を作ります'],hearing:['ヒアリング項目','所属機関との初回商談で聞く項目と、その理由'],companies:['所属機関','支援を受託している所属機関（受入れ企業）の基本情報・契約・面談記録'],workers:['外国人材','支援している特定技能外国人の在留・申請・支援の状況'],sched:['支援スケジュール','事前ガイダンスから定期面談まで、支援の予定と実施を管理します'],ledger:['監査帳簿','入管の監査で求められる帳簿を1つずつ選んで印刷・PDF保存します（運用要領 第9章）'],jobs:['求人管理','所属機関から受けた求人と、求人票・求人管理簿'],cands:['候補者管理','紹介する候補者（求職者）と、履歴書・求職管理簿'],tchat:['社内チャット','登録支援機関の中でのやり取り'],jchat:['求人チャット','求人・候補者ごとのやり取り']};
-var ALLV=['kpi','leads','hearing','mypage','orgs','account','audit','olink','companies','workers','sched','ledger','todoke','jobs','cands','tchat','jchat'];
+var TITLES={meeting:['定期面談','3か月に1回以上の面談（外国人本人・監督者の両方）。期限切れと、予定が入っていない人を表示します'],todoke:['届出・期限','特異事案の報告（14日以内）・登録事項の変更届出（14日以内）・支援担当者の変更'],olink:['O-Link','大房行政書士法人への申請依頼・進捗・不足書類・お知らせ（O-Link）'],audit:['操作の記録','だれが・いつ・何を追加／変更／削除したか（管理者だけ）'],account:['アカウント設定','自分の表示名・マイページの担当者との紐づけ・パスワード'],kpi:['KPI','所属機関への営業の行動量と成果を、月の目標と比べて見ます'],leads:['見込み客','求人・支援委託をもらう前の企業と、次の一手を管理します'],mypage:['マイページ','登録支援機関の基本情報。法定の帳簿（支援実施体制）と登録支援機関概要書の項目をまとめて管理します'],orgs:['登録支援機関の管理','運営用：配布する登録支援機関と、その最初の管理者を作ります'],hearing:['ヒアリング項目','所属機関との初回商談で聞く項目と、その理由'],companies:['所属機関','支援を受託している所属機関（受入れ企業）の基本情報・契約・面談記録'],workers:['外国人材','支援している特定技能外国人の在留・申請・支援の状況'],sched:['支援スケジュール','事前ガイダンスから定期面談まで、支援の予定と実施を管理します'],ledger:['監査帳簿','入管の監査で求められる帳簿を1つずつ選んで印刷・PDF保存します（運用要領 第9章）'],jobs:['求人管理','所属機関から受けた求人と、求人票・求人管理簿'],cands:['候補者管理','紹介する候補者（求職者）と、履歴書・求職管理簿'],tchat:['社内チャット','登録支援機関の中でのやり取り'],jchat:['求人チャット','求人・候補者ごとのやり取り']};
+var ALLV=['kpi','leads','hearing','mypage','orgs','account','audit','olink','companies','workers','sched','meeting','ledger','todoke','jobs','cands','tchat','jchat'];
 /* サイドメニューの開閉（O-Linkを開くと自動で閉じ、ほかの画面に移るともとに戻す） */
 var sbAuto=null;
 function sbSet(closed,save){document.body.classList.toggle('sb-closed',closed);var b=$('sbToggle');if(b){b.title=closed?'メニューを開く':'メニューを閉じる';b.setAttribute('aria-expanded',closed?'false':'true');}
@@ -1464,7 +1466,7 @@ function hAuto(){autoSave(function(){return saveHearing();});}
 })();
 
 /* ---------- 描画 ---------- */
-var XVIEWS=['audit','companies','workers','sched','ledger','todoke','jobs','cands','tchat','jchat'];
+var XVIEWS=['audit','companies','workers','sched','meeting','ledger','todoke','jobs','cands','tchat','jchat'];
 function isXView(v){return XVIEWS.indexOf(v)>=0;}
 function render(force){
   if(isXView(view)){if(window.RSOX&&window.RSO_READY)window.RSOX.render(view);return;}
@@ -2888,7 +2890,7 @@ async function updBadges(){
     var t=0;TC.rooms.forEach(function(r){if(tcMyMem(r.id))t+=tcUnread(r.id);});var j=0;JC.rooms.forEach(function(r){j+=jcUnread(r.id);});
     var sb=function(id,n){var el=$(id);if(!el)return;var bd=el.querySelector('.badge');if(!bd){bd=document.createElement('span');bd.className='badge';el.appendChild(bd);}bd.textContent=n;bd.hidden=!n;};
     sb('nav-tchat',t);sb('nav-jchat',j);
-    var wa=workerAlerts().filter(function(a){return a.cls==='bad';}).reduce(function(s,a){return s+a.ids.length;},0);sb('nav-workers',wa);sb('nav-sched',meetTodo().length);sb('nav-todoke',todokeOverdue());
+    var wa=workerAlerts().filter(function(a){return a.cls==='bad';}).reduce(function(s,a){return s+a.ids.length;},0);sb('nav-workers',wa);sb('nav-sched',meetTodo().length);sb('nav-todoke',todokeOverdue());sb('nav-meeting',meetRows().filter(function(m){return meetState(m)[1]==='bad';}).length);
   }catch(e){}
 }
 /* ---------- 監査帳簿（運用要領 第9章：登録支援機関が作成・保存する帳簿） ----------
@@ -3440,7 +3442,7 @@ async function renderAudit(){
 }
 
 /* ---------- 届出・期限 ----------
-   ① 特異事案の報告（4-3）…14日以内　② 定期面談…3か月に1回以上　③ 登録事項の変更届出…14日以内（4-4）　④ 支援責任者・担当者の変更
+   ① 特異事案の報告（4-3）…14日以内　② 登録事項の変更届出…14日以内（4-4）　③ 支援責任者・担当者の変更　（定期面談は別メニュー renderMeeting）
    ※ 定期届出（3-6号＋別紙）の人材一覧の出力は、大房への依頼を残すため今は載せない（setup.sql のメモ参照） */
 function addMonthsStr(s,n){var d=new Date(s+'T00:00:00'),day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);var last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return R.ymd(d);}
 function pill(c,t){var m={bad:['#c53030','#fff5f5'],warn:['#b7791f','#fffaf0'],ok:['#2f855a','#f0fff4'],info:['#2b6cb0','#ebf8ff'],na:['#718096','#edf2f7']}[c]||['#4a5568','#edf2f7'];return '<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11.5px;font-weight:700;white-space:nowrap;color:'+m[0]+';background:'+m[1]+'">'+esc(t)+'</span>';}
@@ -3480,7 +3482,6 @@ function meetRows(){
 function meetState(m){if(m.left<0){if(m.plan&&m.plan<=m.due)return ['予定あり','info'];return ['期限切れ（'+(-m.left)+'日）','bad'];}if(m.plan&&m.plan<=m.due)return ['予定あり','ok'];if(m.left<=14)return ['あと'+m.left+'日','warn'];return ['あと'+m.left+'日','ok'];}
 function todokeOverdue(){
   var n=incItems().filter(function(it){return !it.filed&&!it.skip&&it.left<0;}).length;
-  n+=meetRows().filter(function(m){return meetState(m)[1]==='bad';}).length;
   n+=tlog().filter(function(l){return l.kind==='change'&&!l.filed&&daysTo(addDays(l.at,14))<0;}).length;
   return n;
 }
@@ -3628,6 +3629,25 @@ function todokeClick(e){var b=e.target.closest('button');if(!b)return;
   if(b.dataset.tlprint){var lg=tlog().filter(function(l){return l.id===b.dataset.tlprint;})[0];if(!lg)return;var o=orgPf();
     openForm('登録事項の変更に関する届出書別紙（4-4）',pages44(lg));return;}
 }
+var VM={all:false,q:''};
+function renderMeeting(){
+  var el=$('v-meeting');if(!el.dataset.bound){el.dataset.bound='1';el.addEventListener('click',function(e){var b=e.target.closest('button');if(b&&b.id==='mAll'){VM.all=!VM.all;renderMeeting();return;}todokeClick(e);});
+    el.addEventListener('input',function(e){if(e.target.id==='mQ'){VM.q=e.target.value;var p=e.target.selectionStart;renderMeeting();var i=$('mQ');if(i){i.focus();try{i.setSelectionRange(p,p);}catch(x){}}}});}
+  var th=function(a){return '<tr>'+a.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr>';};
+  var all=meetRows(),q=String(VM.q||'').trim().toLowerCase();
+  /* 初期表示：期限切れで予定がない人／期限まで14日以内で予定がない人 */
+  var need=all.filter(function(m){var c=meetState(m)[1];return c==='bad'||(c==='warn'&&!m.plan);});
+  var base=VM.all?all:need;
+  var rows=q?base.filter(function(m){return String(m.w.name||'').toLowerCase().indexOf(q)>=0||coName(m.w.company_id).toLowerCase().indexOf(q)>=0;}):base;
+  var over=all.filter(function(m){return meetState(m)[1]==='bad';}).length;
+  el.innerHTML='<div class="xsec"><div class="xsec-t">定期面談の間隔　<span class="sub">外国人本人・監督者の両方と、3か月に1回以上（対面またはオンライン）</span></div>'+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 10px"><input type="text" id="mQ" placeholder="氏名・所属機関で検索" value="'+esc(VM.q)+'" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;width:240px">'+
+    '<button class="btn btn-sm'+(VM.all?'':' btn-primary')+'" id="mAll">'+(VM.all?'要対応だけに絞る':'すべての人を表示（'+all.length+'名）')+'</button>'+
+    '<span class="sub">要対応 <b>'+need.length+'名</b>（うち期限切れ・予定なし <b style="color:#c53030">'+over+'名</b>）　全体 '+all.length+'名</span></div>'+
+    (rows.length?'<table class="tbl"><thead>'+th(['人材','所属機関','最後の面談','次の期限（3か月）','予定','状態','操作'])+'</thead><tbody>'+rows.map(function(m){var st=meetState(m);
+      return '<tr><td>'+esc(m.w.name||'')+'</td><td>'+esc(coName(m.w.company_id))+'</td><td class="num">'+(m.last?esc(ymdj(m.last)):'<span class="sub">まだ（支援開始日から数えます）</span>')+'</td><td class="num">'+esc(ymdj(m.due))+'</td><td class="num">'+(m.plan?esc(ymdj(m.plan)):'')+'</td><td>'+pill(st[1],st[0])+'</td><td><button class="btn btn-sm" data-nsched="periodic_meeting" data-pw="'+esc(m.w.id)+'">面談を登録</button></td></tr>';}).join('')+'</tbody></table>':
+      '<div class="empty">'+(all.length?(q?'該当する人材がいません':'期限切れ・期限が近い人はいません（すべての人を見るには上のボタン）'):'支援開始日が入っている人材がいません')+'</div>')+'</div>';
+}
 function renderTodoke(){
   var el=$('v-todoke');if(!el.dataset.bound){el.dataset.bound='1';el.addEventListener('click',todokeClick);}
   var adm=isAdminOrg(),h='';
@@ -3639,20 +3659,15 @@ function renderTodoke(){
     (inc.length?'<table class="tbl"><thead>'+th(['発生日','人材（所属機関）','種類','報告の期限','状態','添付する書類','操作'])+'</thead><tbody>'+inc.map(function(it){var st=incState(it),at=incAttach(it);
       return '<tr><td class="num">'+esc(ymdj(it.d))+'</td><td>'+esc(it.w.name||'')+'<div class="sub">'+esc(coName(it.s.company_id||it.w.company_id))+'</div></td><td>'+esc(incKind(it))+'</td><td class="num">'+esc(ymdj(it.due))+'</td><td>'+pill(st[1],st[0])+(it.filed?'<div class="sub">'+esc(ymdj(it.filed))+'</div>':'')+'</td><td style="font-size:12px">'+at.map(esc).join('<br>')+'</td>'+
         '<td style="white-space:nowrap"><button class="btn btn-sm" data-osched="'+esc(it.s.id)+'">記録を開く</button> <button class="btn btn-sm" data-pdoc="43|'+esc(it.s.id)+'">4-3を出力</button>'+(incDocPages(it,'att')?' <button class="btn btn-sm" data-pdoc="att|'+esc(it.s.id)+'">添付書類を出力</button>':'')+(it.filed?'':' <button class="btn btn-sm btn-primary" data-inc43="'+esc(it.s.id)+'">提出済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">該当する記録はありません</div>')+'</div>';
-  /* ② 定期面談 */
-  var mr=meetRows();
-  h+='<div class="xsec"><div class="xsec-t">② 定期面談の間隔　<span class="sub">外国人本人・監督者の両方と、3か月に1回以上（対面またはオンライン）</span></div>'+
-    (mr.length?'<table class="tbl"><thead>'+th(['人材','所属機関','最後の面談','次の期限（3か月）','予定','状態','操作'])+'</thead><tbody>'+mr.map(function(m){var st=meetState(m);
-      return '<tr><td>'+esc(m.w.name||'')+'</td><td>'+esc(coName(m.w.company_id))+'</td><td class="num">'+(m.last?esc(ymdj(m.last)):'<span class="sub">まだ（支援開始日から数えます）</span>')+'</td><td class="num">'+esc(ymdj(m.due))+'</td><td class="num">'+(m.plan?esc(ymdj(m.plan)):'')+'</td><td>'+pill(st[1],st[0])+'</td><td><button class="btn btn-sm" data-nsched="periodic_meeting" data-pw="'+esc(m.w.id)+'">面談を登録</button></td></tr>';}).join('')+'</tbody></table>':'<div class="empty">支援開始日が入っている人材がいません</div>')+'</div>';
   /* ③ 変更届出 */
   var chg=tlog().filter(function(l){return l.kind==='change';}).slice().reverse();
-  h+='<div class="xsec"><div class="xsec-t">③ 登録事項の変更届出（参考様式第4-4号）　<span class="sub">変更した日から14日以内</span></div>'+
+  h+='<div class="xsec"><div class="xsec-t">② 登録事項の変更届出（参考様式第4-4号）　<span class="sub">変更した日から14日以内</span></div>'+
     '<div class="hint">マイページで、名称・住所・代表者・事務所・支援業務の内容・相談の体制や対応言語などを変えて保存すると、自動でここに記録されます。</div>'+
     (chg.length?'<table class="tbl"><thead>'+th(['変更した日','変更した項目','届出の期限','状態','操作'])+'</thead><tbody>'+chg.map(function(l){var due=addDays(l.at,14),left=daysTo(due),st=l.filed?['提出済み','ok']:left<0?['期限切れ（'+(-left)+'日）','bad']:left<=5?['あと'+left+'日','warn']:['あと'+left+'日','info'];
       return '<tr><td class="num">'+esc(ymdj(l.at))+'<div class="sub">'+esc(l.by||'')+'</div></td><td style="font-size:12px">'+(l.items||[]).map(function(x){return '<b>'+esc(x.l)+'</b>';}).join('、')+'</td><td class="num">'+esc(ymdj(due))+'</td><td>'+pill(st[1],st[0])+(l.filed?'<div class="sub">'+esc(ymdj(l.filed))+'</div>':'')+'</td><td style="white-space:nowrap"><button class="btn btn-sm" data-tlprint="'+esc(l.id)+'">届出書を出力</button>'+(l.filed||!adm?'':' <button class="btn btn-sm btn-primary" data-tlfile="'+esc(l.id)+'">提出済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">記録された変更はありません</div>')+'</div>';
   /* ④ 支援担当者の変更 */
   var stf=tlog().filter(function(l){return l.kind==='staff';}).slice().reverse();
-  h+='<div class="xsec"><div class="xsec-t">④ 支援責任者・支援担当者の変更　<span class="sub">登録支援機関からの届出は不要。ただし所属機関が「支援計画の変更届出」を出します</span></div>'+
+  h+='<div class="xsec"><div class="xsec-t">③ 支援責任者・支援担当者の変更　<span class="sub">登録支援機関からの届出は不要。ただし所属機関が「支援計画の変更届出」を出します</span></div>'+
     (stf.length?'<table class="tbl"><thead>'+th(['変更した日','内容','所属機関への連絡','操作'])+'</thead><tbody>'+stf.map(function(l){
       return '<tr><td class="num">'+esc(ymdj(l.at))+'<div class="sub">'+esc(l.by||'')+'</div></td><td>'+(l.add&&l.add.length?'追加：'+esc(l.add.join('、')):'')+(l.add&&l.add.length&&l.del&&l.del.length?'<br>':'')+(l.del&&l.del.length?'外れた人：'+esc(l.del.join('、')):'')+'</td><td>'+(l.notified?pill('ok','連絡済み '+ymdj(l.notified)):pill('warn','未連絡'))+'</td><td>'+(l.notified||!adm?'':'<button class="btn btn-sm btn-primary" data-tlstaff="'+esc(l.id)+'">連絡済みにする</button>')+'</td></tr>';}).join('')+'</tbody></table>'+
       '<div class="hint">支援を委託している所属機関すべてに、支援責任者・支援担当者が変わったことを伝え、支援計画の変更届出を出してもらってください。</div>':'<div class="empty">記録された変更はありません</div>')+'</div>';
@@ -3666,6 +3681,7 @@ var VIEWS={
   sched:{render:renderSched,tools:[tool('＋ 予定を登録',function(){openSched(null,{});},true)]},
   ledger:{render:renderLedger,tools:[]},
   todoke:{render:renderTodoke,tools:[]},
+  meeting:{render:renderMeeting,tools:[]},
   audit:{render:renderAudit,tools:[tool('再読み込み',function(){VA._loaded=false;renderAudit();})]},
   jobs:{render:renderJobs,tools:[tool('＋ 新規求人を登録',function(){openJob(null);},true)]},
   cands:{render:renderCands,tools:[tool('＋ 候補者を登録',function(){openCand(null);},true)]},

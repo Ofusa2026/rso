@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- RSO_VERSION ver.20261105.25 -->
+<!-- RSO_VERSION ver.20261106.01 -->
 <title>RSO（登録支援機関システム）</title>
 <style>
 /* 営業管理システム（営シス）と同じ見た目：左に紺のサイドバー、右に白いカード。ライトのみ */
@@ -411,7 +411,7 @@ table.ledger td,table.ledger th{border:1px solid var(--line);font-size:12px}
     <div>
       <h1 class="page-title" id="pTitle">KPI</h1>
       <div class="page-subtitle" id="pSub"></div>
-      <div class="ver">ver.20261105.25</div>
+      <div class="ver">ver.20261106.01</div>
     </div>
     <div class="toolbar" id="pTools"></div>
   </div>
@@ -2238,17 +2238,17 @@ function drawWorkers(){
     if(VW.pass==='none'&&w.passport_expiry)return false;if(VW.pass==='over'&&!(w.passport_expiry&&pd<0))return false;if(['90','180','365'].indexOf(VW.pass)>=0&&!(w.passport_expiry&&pd>=0&&pd<=Number(VW.pass)))return false;
     if(q&&norm([w.name,w.name_kana,w.nationality,c.name,w.management_no].join(' ')).indexOf(q)<0)return false;
     return true;});
-  if(VW.sortK){var k=VW.sortK;var val=function(w){if(k==='co')return (coOf(w.company_id)||{}).name||'';if(k==='five')return fiveYear(w);if(k==='staff')return (coOf(w.company_id)||{}).main_staff||'';return w[k]==null?'':String(w[k]);};
+  if(VW.sortK){var k=VW.sortK;var val=function(w){if(k==='co')return (coOf(w.company_id)||{}).name||'';if(k==='five')return fiveYear(w);if(k==='tmp')return w.return_home_date||'';if(k==='staff')return (coOf(w.company_id)||{}).main_staff||'';return w[k]==null?'':String(w[k]);};
     rows.sort(function(a,b){var x=val(a),y=val(b);if(!x&&y)return 1;if(!y&&x)return -1;return x.localeCompare(y,'ja')*VW.sortD;});}
   else rows.sort(function(a,b){var x=a.joined_date||'',y=b.joined_date||'';if(x!==y){if(!x)return 1;if(!y)return -1;return y.localeCompare(x);}return String(a.name||'').localeCompare(String(b.name||''),'ja');});
   $('wkCount').textContent=rows.length+'名';
-  var H=[['management_no','管理番号'],['name','氏名'],['nationality','国籍'],['co','企業名'],['applicant_field','分野／職種'],['visa_status','在留資格'],['visa_expiry','在留期限'],['joined_date','配属日'],['status','ステータス'],['five','5年満了日'],['staff','担当'],['passport','パスポート番号']];
+  var H=[['management_no','管理番号'],['name','氏名'],['nationality','国籍'],['co','企業名'],['applicant_field','分野／職種'],['visa_status','在留資格'],['visa_expiry','在留期限'],['tmp','一時帰国'],['joined_date','配属日'],['status','ステータス'],['staff','担当']];
   $('wkHead').innerHTML=H.map(function(h){return '<th data-s="'+h[0]+'" style="cursor:pointer">'+h[1]+(VW.sortK===h[0]?(VW.sortD>0?' ▲':' ▼'):'')+'</th>';}).join('');
   var show=rows.slice(0,VW.limit);
   $('wkBody').innerHTML=show.length?show.map(function(w){var c=coOf(w.company_id)||{},d=daysTo(w.visa_expiry),tk=tokureiOf(w),five=fiveYear(w),pd=daysTo(w.passport_expiry);
     var exp=w.visa_expiry?'<span class="num'+(d<0?' t-red':d<=30?' t-red':d<=90?' t-org':'')+'">'+ymdj(w.visa_expiry)+'</span>'+(d<0&&tk&&tk>=today()?'<div class="sub">特例期間中（'+ymdj(tk)+'まで）</div>':d<0?'<div class="sub t-red">期限切れ</div>':''):'';
-    if(w.return_home_date||w.return_jp_date)exp+='<div class="sub" style="color:#975a16">一時帰国 '+(w.return_home_date?ymdj(w.return_home_date):'未定')+' 〜 '+(w.return_jp_date?ymdj(w.return_jp_date):'未定')+'</div>';
-    return '<tr class="click'+(d!=null&&d<0?' row-over':d!=null&&d<=30?' row-soon':'')+'" data-id="'+w.id+'"><td class="num" data-f="management_no">'+esc(w.management_no||'')+'</td><td data-f="name">'+(w.photo_url?'<img class="ava" src="'+esc(w.photo_url)+'" alt="">':'')+'<span class="nm">'+esc(w.name||'')+'</span><div class="sub">'+esc(w.name_kana||'')+'</div></td><td data-f="nationality">'+esc(w.nationality||'')+'</td><td data-f="@co">'+esc(c.name||'')+(c.folder_no?'<div class="sub">'+esc(c.folder_no)+'</div>':'')+'</td><td data-f="applicant_field">'+esc(w.applicant_field||'')+'<div class="sub">'+esc(w.job_category||'')+'</div></td><td data-f="visa_status">'+esc(w.visa_status||'')+'</td><td data-f="visa_expiry">'+exp+'</td><td class="num" data-f="joined_date">'+ymdj(w.joined_date)+'</td><td data-f="status">'+wStatusBadge(w)+(w.apply_status&&w.apply_status!=='申請予定なし'?'<div style="margin-top:3px">'+chip(w.apply_status,w.apply_status==='未依頼'?'#c53030':w.apply_status==='依頼中'?'#b7791f':'#6b46c1',w.apply_status==='未依頼'?'#fff5f5':w.apply_status==='依頼中'?'#fffaf0':'#faf5ff')+'</div>':'')+'</td><td class="num" data-f="tg2_expiry">'+ymdj(five)+(w.history_unknown?'<div>'+chip('要確認','#c53030','#fff5f5')+'</div>':'')+(w.tokutei_six_year?'<div>'+chip('6年','#2b6cb0','#ebf8ff')+'</div>':'')+'</td><td data-f="@co">'+esc(c.main_staff||'')+(c.sub_staff?'<div class="sub">'+esc(c.sub_staff)+'</div>':'')+'</td><td data-f="passport">'+esc(w.passport||'')+(w.passport_expiry?'<div class="sub'+(pd<0?' t-red':'')+'">'+ymdj(w.passport_expiry)+'</div>':(w.passport?'<div class="sub t-org">期限未入力</div>':''))+'</td></tr>';}).join(''):'<tr><td colspan="12" class="empty">該当する人材がありません</td></tr>';
+    var tmp=(w.return_home_date||w.return_jp_date)?'<span style="color:#975a16">'+(w.return_home_date?ymdj(w.return_home_date):'未定')+' 〜 '+(w.return_jp_date?ymdj(w.return_jp_date):'未定')+'</span>':'';
+    return '<tr class="click'+(d!=null&&d<0?' row-over':d!=null&&d<=30?' row-soon':'')+'" data-id="'+w.id+'"><td class="num" data-f="management_no">'+esc(w.management_no||'')+'</td><td data-f="name">'+(w.photo_url?'<img class="ava" src="'+esc(w.photo_url)+'" alt="">':'')+'<span class="nm">'+esc(w.name||'')+'</span><div class="sub">'+esc(w.name_kana||'')+'</div></td><td data-f="nationality">'+esc(w.nationality||'')+'</td><td data-f="@co">'+esc(c.name||'')+(c.folder_no?'<div class="sub">'+esc(c.folder_no)+'</div>':'')+'</td><td data-f="applicant_field">'+esc(w.applicant_field||'')+'<div class="sub">'+esc(w.job_category||'')+'</div></td><td data-f="visa_status">'+esc(w.visa_status||'')+'</td><td data-f="visa_expiry">'+exp+'</td><td class="num" data-f="return_home_date">'+tmp+'</td><td class="num" data-f="joined_date">'+ymdj(w.joined_date)+'</td><td data-f="status">'+wStatusBadge(w)+(w.apply_status&&w.apply_status!=='申請予定なし'?'<div style="margin-top:3px">'+chip(w.apply_status,w.apply_status==='未依頼'?'#c53030':w.apply_status==='依頼中'?'#b7791f':'#6b46c1',w.apply_status==='未依頼'?'#fff5f5':w.apply_status==='依頼中'?'#fffaf0':'#faf5ff')+'</div>':'')+'</td><td data-f="@co">'+esc(c.main_staff||'')+(c.sub_staff?'<div class="sub">'+esc(c.sub_staff)+'</div>':'')+'</td></tr>';}).join(''):'<tr><td colspan="10" class="empty">該当する人材がありません</td></tr>';
   $('wkMore').hidden=rows.length<=VW.limit;
 }
 var W_TABS_SEC=['1. 申請情報','2. 在留情報','3. 更新状況','4. ドライブリンク','5. メモ','6. 人材情報','7. 所属機関・受け入れ情報','8. 支援情報','9. 連絡先','10. 通算期間と過去の就労先'];

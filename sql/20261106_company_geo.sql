@@ -1,0 +1,1 @@
+alter table companies add column if not exists geo_lat numeric, add column if not exists geo_lng numeric, add column if not exists workplace_lat numeric, add column if not exists workplace_lng numeric;

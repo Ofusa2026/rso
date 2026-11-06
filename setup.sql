@@ -1246,3 +1246,4 @@ alter table companies
   add column if not exists missing_1y numeric;
 alter table workers add column if not exists emp_set text;
 alter table companies alter column emp_sets set default '[]'::jsonb;
+alter table companies add column if not exists geo_lat numeric, add column if not exists geo_lng numeric, add column if not exists workplace_lat numeric, add column if not exists workplace_lng numeric;
